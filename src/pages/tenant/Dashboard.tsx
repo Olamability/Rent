@@ -305,7 +305,11 @@ const TenantDashboard = () => {
                   <p className="text-sm text-muted-foreground mt-1">Track all your property applications</p>
                 </div>
                 <div className="p-4">
-                  {applications.length > 0 ? (
+                  {loading ? (
+                    <div className="flex items-center justify-center py-6">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-accent"></div>
+                    </div>
+                  ) : applications.length > 0 ? (
                     <div className="space-y-3">
                       {applications.map((app) => (
                         <Link 

@@ -3,6 +3,7 @@
 import { supabase } from '@/lib/supabase';
 import type { PropertyApplication } from '@/types';
 import { createNotification } from './notificationService';
+import { formatDateSafely } from '@/lib/utils';
 
 /**
  * Submit a new property application
@@ -144,7 +145,7 @@ export async function submitApplication(data: {
     await createNotification({
       userId: property.landlord_id,
       title: 'New Property Application',
-      message: `${tenantName} has applied for ${property.name} - Unit ${unit.unit_number}. Move-in: ${data.moveInDate ? new Date(data.moveInDate).toLocaleDateString() : 'TBD'}`,
+      message: `${tenantName} has applied for ${property.name} - Unit ${unit.unit_number}. Move-in: ${formatDateSafely(data.moveInDate, 'TBD')}`,
       type: 'info',
       actionUrl: `/landlord/units`,
     });

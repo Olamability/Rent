@@ -24,6 +24,7 @@ import { supabase } from '@/lib/supabase';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { formatDateSafely } from "@/lib/utils";
 
 interface Application {
   id: string;
@@ -162,7 +163,7 @@ const UnitManagement = () => {
           tenantPhone: app.users?.phone,
           propertyName: app.properties?.name || 'Unknown Property',
           unitNumber: app.units?.unit_number || 'N/A',
-          moveInDate: app.moveInDate ? app.moveInDate.toLocaleDateString() : 'Not specified',
+          moveInDate: formatDateSafely(app.moveInDate),
           personalInfo: app.personalInfo,
           currentAddress: app.currentAddress,
           employer: app.employmentInfo?.employer || '',
@@ -182,7 +183,7 @@ const UnitManagement = () => {
           backgroundCheckConsent: app.backgroundCheckConsent,
           notes: app.notes,
           status: app.status,
-          submittedAt: app.submittedAt ? app.submittedAt.toLocaleDateString() : 'Unknown',
+          submittedAt: formatDateSafely(app.submittedAt, 'Unknown'),
         };
       });
 

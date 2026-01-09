@@ -305,7 +305,7 @@ export interface PropertyApplication {
   status: 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'cancelled';
   submittedAt: Date;
   reviewedAt?: Date;
-  moveInDate: Date;
+  moveInDate?: Date;
   // Personal Information
   personalInfo?: {
     firstName: string;

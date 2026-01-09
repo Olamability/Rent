@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '@/lib/supabase';
 import { fetchApplicationsByTenant } from './applicationService';
+import { formatDateSafely } from '@/lib/utils';
 
 export interface TenantDashboardData {
   currentLease: {
@@ -269,8 +270,8 @@ async function fetchApplications(tenantId: string) {
         propertyName,
         unitNumber,
         status: app.status,
-        submittedAt: app.submittedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        moveInDate: app.moveInDate ? app.moveInDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A',
+        submittedAt: formatDateSafely(app.submittedAt, 'Unknown', { month: 'short', day: 'numeric' }),
+        moveInDate: formatDateSafely(app.moveInDate, 'N/A', { month: 'short', day: 'numeric' }),
       };
     });
   } catch (error) {
