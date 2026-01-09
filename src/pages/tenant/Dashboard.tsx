@@ -146,7 +146,17 @@ const TenantDashboard = () => {
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">No active lease found</p>
+                <p className="text-muted-foreground mb-2">No active lease found</p>
+                {applications.length > 0 ? (
+                  <p className="text-sm text-muted-foreground mb-4">
+                    You have {applications.length} pending application{applications.length > 1 ? 's' : ''}. 
+                    Check the Application Status card above for details.
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Browse available properties to find your perfect home
+                  </p>
+                )}
                 <Button variant="outline" asChild>
                   <Link to="/tenant/search">Browse Properties</Link>
                 </Button>
