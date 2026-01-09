@@ -14,6 +14,7 @@ import { fetchPaymentHistory, fetchUpcomingPayment, type PaymentHistory } from "
 import { fetchActiveTenancyAgreement } from "@/services/agreementService";
 import { fetchApplicationsByTenant } from "@/services/applicationService";
 import { fetchApplicationPayment } from "@/services/tenancyFlowService";
+import { fetchTenantInvoices, type Invoice } from "@/services/invoiceService";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
@@ -27,6 +28,7 @@ const RentPayment = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingApplicationPayment, setPendingApplicationPayment] = useState<any>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
   // Fetch payment data
   useEffect(() => {
@@ -43,6 +45,12 @@ const RentPayment = () => {
       try {
         setError(null);
         setLoading(true);
+        
+        // Fetch invoices for this tenant
+        const tenantInvoices = await fetchTenantInvoices(user.id);
+        if (isMounted) {
+          setInvoices(tenantInvoices);
+        }
         
         // Check for approved applications with pending payments
         const applications = await fetchApplicationsByTenant(user.id);
@@ -283,6 +291,66 @@ const RentPayment = () => {
             </div>
             <Button variant="outline" className="w-full mt-4" onClick={() => setIsAddPaymentMethodDialogOpen(true)}>Add Payment Method</Button>
           </Card>
+
+          {/* Invoices Section */}
+          {invoices.length > 0 && (
+            <Card className="p-6 mb-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4">Your Invoices</h3>
+              <div className="space-y-4">
+                {invoices.map((invoice) => (
+                  <div key={invoice.id} className="flex items-center justify-between py-3 border-b border-border/50 last:border-0">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        invoice.status === 'paid' ? 'bg-success/10' : 
+                        invoice.status === 'overdue' ? 'bg-destructive/10' : 'bg-warning/10'
+                      }`}>
+                        <FileText className={`w-5 h-5 ${
+                          invoice.status === 'paid' ? 'text-success' : 
+                          invoice.status === 'overdue' ? 'text-destructive' : 'text-warning'
+                        }`} />
+                      </div>
+                      <div>
+                        <div className="font-medium text-foreground">
+                          Invoice #{invoice.invoiceNumber}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {invoice.unit?.property?.name || 'Property'} - Unit {invoice.unit?.unitNumber || 'N/A'}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Due: {new Date(invoice.dueDate).toLocaleDateString()} • 
+                          Type: {invoice.invoiceType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold text-foreground">
+                        ${invoice.totalAmount.toLocaleString()}
+                      </div>
+                      <Badge 
+                        variant={
+                          invoice.status === 'paid' ? 'default' : 
+                          invoice.status === 'overdue' ? 'destructive' : 'secondary'
+                        }
+                        className="mt-1"
+                      >
+                        {invoice.status.toUpperCase()}
+                      </Badge>
+                      {invoice.status === 'pending' && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="mt-2"
+                          onClick={() => setIsPaymentDialogOpen(true)}
+                        >
+                          Pay Now
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
 
           {/* Payment History */}
           <Card className="p-6">
