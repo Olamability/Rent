@@ -90,9 +90,14 @@ const TenantDashboard = () => {
   const handleWithdrawSuccess = () => {
     // Reload dashboard data after successful withdrawal
     if (user?.id) {
-      fetchTenantDashboardData(user.id).then(data => {
-        setDashboardData(data);
-      });
+      fetchTenantDashboardData(user.id)
+        .then(data => {
+          setDashboardData(data);
+        })
+        .catch(err => {
+          console.error('Failed to reload dashboard data after withdrawal:', err);
+          // Error is logged but not shown to user since withdrawal was successful
+        });
     }
   };
 
@@ -384,11 +389,7 @@ const TenantDashboard = () => {
                                 className="text-destructive hover:bg-destructive/10"
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  handleOpenWithdrawDialog({
-                                    id: app.id,
-                                    propertyName: app.propertyName,
-                                    unitNumber: app.unitNumber,
-                                  });
+                                  handleOpenWithdrawDialog(app);
                                 }}
                               >
                                 <XCircle className="w-3 h-3 mr-1" />
@@ -404,11 +405,7 @@ const TenantDashboard = () => {
                                 className="text-destructive hover:bg-destructive/10 w-full"
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  handleOpenWithdrawDialog({
-                                    id: app.id,
-                                    propertyName: app.propertyName,
-                                    unitNumber: app.unitNumber,
-                                  });
+                                  handleOpenWithdrawDialog(app);
                                 }}
                               >
                                 <XCircle className="w-3 h-3 mr-1" />
