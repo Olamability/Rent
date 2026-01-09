@@ -9,7 +9,8 @@ import {
   Clock,
   AlertCircle,
   LogOut,
-  CreditCard
+  CreditCard,
+  XCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -23,6 +24,7 @@ import { fetchLatestAlert, type Notification } from "@/services/notificationServ
 import { ApplicationStatusCard } from "@/components/tenant/ApplicationStatusCard";
 import { EndTenancyDialog } from "@/components/tenant/EndTenancyDialog";
 import { fetchActiveTenancyAgreement } from "@/services/agreementService";
+import { WithdrawApplicationDialog } from "@/components/tenant/WithdrawApplicationDialog";
 
 const TenantDashboard = () => {
   const { user, getProfileCompleteness } = useAuth();
@@ -34,6 +36,12 @@ const TenantDashboard = () => {
   const [latestAlert, setLatestAlert] = useState<Notification | null>(null);
   const [isEndTenancyOpen, setIsEndTenancyOpen] = useState(false);
   const [agreementId, setAgreementId] = useState<string | null>(null);
+  const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState<{
+    id: string;
+    propertyName: string;
+    unitNumber: string;
+  } | null>(null);
 
   // Fetch dashboard data on mount
   useEffect(() => {
@@ -78,6 +86,29 @@ const TenantDashboard = () => {
       isMounted = false;
     };
   }, [user?.id]);
+
+  const handleWithdrawSuccess = () => {
+    // Reload dashboard data after successful withdrawal
+    if (user?.id) {
+      fetchTenantDashboardData(user.id)
+        .then(data => {
+          setDashboardData(data);
+        })
+        .catch(err => {
+          console.error('Failed to reload dashboard data after withdrawal:', err);
+          // Error is logged but not shown to user since withdrawal was successful
+        });
+    }
+  };
+
+  const handleOpenWithdrawDialog = (app: { id: string; propertyName: string; unitNumber: string }) => {
+    setSelectedApplication({
+      id: app.id,
+      propertyName: app.propertyName,
+      unitNumber: app.unitNumber,
+    });
+    setIsWithdrawDialogOpen(true);
+  };
 
   const paymentHistory = dashboardData?.payments || [];
   const maintenanceRequests = dashboardData?.maintenanceRequests || [];
@@ -312,10 +343,9 @@ const TenantDashboard = () => {
                   ) : applications.length > 0 ? (
                     <div className="space-y-3">
                       {applications.map((app) => (
-                        <Link 
-                          key={app.id} 
-                          to="/tenant/rent"
-                          className="block p-3 rounded-lg bg-secondary/50 hover:bg-secondary/70 transition-colors"
+                        <div 
+                          key={app.id}
+                          className="p-3 rounded-lg bg-secondary/50 border border-border/50"
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div>
@@ -331,7 +361,7 @@ const TenantDashboard = () => {
                                 ? 'bg-muted/50 text-muted-foreground'
                                 : 'bg-warning/10 text-warning'
                             }`}>
-                              {app.status === 'approved' ? 'Approved - Pay Now' : app.status}
+                              {app.status === 'approved' ? 'Approved' : app.status}
                             </span>
                           </div>
                           <div className="text-xs text-muted-foreground">
@@ -341,14 +371,49 @@ const TenantDashboard = () => {
                             Move-in: {app.moveInDate}
                           </div>
                           {app.status === 'approved' && (
-                            <div className="mt-2 pt-2 border-t border-border/50">
-                              <p className="text-xs text-accent font-medium flex items-center gap-1">
-                                <CreditCard className="w-3 h-3" />
-                                Click to view invoice and make payment
-                              </p>
+                            <div className="mt-3 flex gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="default" 
+                                className="flex-1"
+                                asChild
+                              >
+                                <Link to="/tenant/rent">
+                                  <CreditCard className="w-3 h-3 mr-1" />
+                                  Proceed to Payment
+                                </Link>
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="text-destructive hover:bg-destructive/10"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleOpenWithdrawDialog(app);
+                                }}
+                              >
+                                <XCircle className="w-3 h-3 mr-1" />
+                                Withdraw
+                              </Button>
                             </div>
                           )}
-                        </Link>
+                          {app.status === 'pending' && (
+                            <div className="mt-3">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="text-destructive hover:bg-destructive/10 w-full"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleOpenWithdrawDialog(app);
+                                }}
+                              >
+                                <XCircle className="w-3 h-3 mr-1" />
+                                Withdraw Application
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   ) : (
@@ -384,6 +449,18 @@ const TenantDashboard = () => {
                 )}
               </div>
             </div>
+          )}
+
+          {/* Withdraw Application Dialog */}
+          {selectedApplication && (
+            <WithdrawApplicationDialog
+              open={isWithdrawDialogOpen}
+              onOpenChange={setIsWithdrawDialogOpen}
+              applicationId={selectedApplication.id}
+              propertyName={selectedApplication.propertyName}
+              unitNumber={selectedApplication.unitNumber}
+              onSuccess={handleWithdrawSuccess}
+            />
           )}
     </DashboardLayout>
   );
