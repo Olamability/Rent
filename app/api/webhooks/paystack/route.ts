@@ -158,6 +158,24 @@ export async function POST(request: NextRequest) {
         throw updateError
       }
 
+      // 9b. Update linked invoice if exists
+      if (payment.invoice_id) {
+        console.log('Updating invoice:', payment.invoice_id)
+        
+        const { error: invoiceUpdateError } = await supabase
+          .from('invoices')
+          .update({
+            paid_amount: amount / 100, // Convert from kobo to naira
+            paid_at: paid_at || new Date().toISOString(),
+          })
+          .eq('id', payment.invoice_id)
+        
+        if (invoiceUpdateError) {
+          console.error('Error updating invoice:', invoiceUpdateError)
+          // Don't fail the whole webhook if invoice update fails
+        }
+      }
+
       // 10. Create audit log (COMPLIANCE REQUIREMENT)
       await supabase.from('audit_logs').insert({
         user_id: payment.tenant_id,
@@ -196,6 +214,92 @@ export async function POST(request: NextRequest) {
         type: 'success',
         action_url: '/tenant/payments',
       })
+
+      // 13. Generate agreement if this is an application payment
+      if (payment.application_id) {
+        console.log('Generating agreement for application:', payment.application_id)
+        
+        try {
+          // Check if agreement already exists for this application
+          const { data: existingAgreement } = await supabase
+            .from('tenancy_agreements')
+            .select('id')
+            .eq('application_id', payment.application_id)
+            .maybeSingle()
+          
+          if (!existingAgreement) {
+            // Get application details
+            const { data: application } = await supabase
+              .from('property_applications')
+              .select('*, units!inner(*, properties!inner(*))')
+              .eq('id', payment.application_id)
+              .single()
+            
+            if (application) {
+              // Calculate lease dates
+              const startDate = new Date(application.move_in_date || new Date())
+              const endDate = new Date(startDate)
+              endDate.setFullYear(endDate.getFullYear() + 1) // Default 1 year lease
+              
+              // Create tenancy agreement
+              const { data: agreement, error: agreementError } = await supabase
+                .from('tenancy_agreements')
+                .insert({
+                  application_id: application.id,
+                  payment_id: payment.id,
+                  tenant_id: application.tenant_id,
+                  landlord_id: application.landlord_id,
+                  property_id: application.units.property_id,
+                  unit_id: application.unit_id,
+                  start_date: startDate.toISOString().split('T')[0],
+                  end_date: endDate.toISOString().split('T')[0],
+                  rent_amount: application.units.rent_amount,
+                  deposit_amount: application.units.deposit || 0,
+                  agreement_status: 'pending',
+                  terms: JSON.stringify([
+                    'Tenant agrees to pay rent on time each month',
+                    'Tenant is responsible for minor maintenance and repairs',
+                    'Landlord is responsible for major repairs and structural maintenance',
+                    'Property must be kept clean and in good condition',
+                    'No subletting without written permission from landlord',
+                    'Tenant must provide 30 days notice before moving out',
+                  ]),
+                })
+                .select()
+                .single()
+              
+              if (!agreementError && agreement) {
+                console.log('Agreement created successfully:', agreement.id)
+                
+                // Send notifications
+                await supabase.from('notifications').insert([
+                  {
+                    user_id: application.tenant_id,
+                    title: 'Agreement Ready for Signature',
+                    message: `Your tenancy agreement for ${application.units.properties.name} is ready. Please review and sign to complete the process.`,
+                    type: 'info',
+                    action_url: '/tenant/agreements',
+                  },
+                  {
+                    user_id: application.landlord_id,
+                    title: 'New Agreement Generated',
+                    message: `A tenancy agreement has been generated for ${application.units.properties.name}. Please review and sign.`,
+                    type: 'info',
+                    action_url: '/landlord/tenancy-agreements',
+                  }
+                ])
+              } else {
+                console.error('Error creating agreement:', agreementError)
+              }
+            }
+          } else {
+            console.log('Agreement already exists for application:', payment.application_id)
+          }
+        } catch (agreementError) {
+          console.error('Error generating agreement:', agreementError)
+          // Don't fail the webhook if agreement generation fails
+        }
+      }
 
       console.log('Payment processed successfully:', reference)
     }
