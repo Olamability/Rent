@@ -144,7 +144,7 @@ export async function submitApplication(data: {
     await createNotification({
       userId: property.landlord_id,
       title: 'New Property Application',
-      message: `${tenantName} has applied for ${property.name} - Unit ${unit.unit_number}. Move-in: ${new Date(data.moveInDate).toLocaleDateString()}`,
+      message: `${tenantName} has applied for ${property.name} - Unit ${unit.unit_number}. Move-in: ${data.moveInDate ? new Date(data.moveInDate).toLocaleDateString() : 'TBD'}`,
       type: 'info',
       actionUrl: `/landlord/units`,
     });

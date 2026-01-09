@@ -162,7 +162,7 @@ const UnitManagement = () => {
           tenantPhone: app.users?.phone,
           propertyName: app.properties?.name || 'Unknown Property',
           unitNumber: app.units?.unit_number || 'N/A',
-          moveInDate: app.moveInDate.toLocaleDateString(),
+          moveInDate: app.moveInDate ? app.moveInDate.toLocaleDateString() : 'Not specified',
           personalInfo: app.personalInfo,
           currentAddress: app.currentAddress,
           employer: app.employmentInfo?.employer || '',
@@ -182,7 +182,7 @@ const UnitManagement = () => {
           backgroundCheckConsent: app.backgroundCheckConsent,
           notes: app.notes,
           status: app.status,
-          submittedAt: app.submittedAt.toLocaleDateString(),
+          submittedAt: app.submittedAt ? app.submittedAt.toLocaleDateString() : 'Unknown',
         };
       });
 

@@ -270,7 +270,7 @@ async function fetchApplications(tenantId: string) {
         unitNumber,
         status: app.status,
         submittedAt: app.submittedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        moveInDate: app.moveInDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        moveInDate: app.moveInDate ? app.moveInDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A',
       };
     });
   } catch (error) {

@@ -30,7 +30,7 @@ interface ApplicationWithPayment {
   rentAmount?: number;
   depositAmount?: number;
   status: 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'cancelled';
-  moveInDate: Date;
+  moveInDate?: Date;
   submittedAt: Date;
   payment?: {
     id: string;
@@ -343,7 +343,7 @@ export const ApplicationStatusCard = () => {
                         </p>
                       )}
                       <p className="text-sm text-muted-foreground">
-                        Move-in date: {new Date(app.moveInDate).toLocaleDateString()}
+                        Move-in date: {app.moveInDate ? new Date(app.moveInDate).toLocaleDateString() : 'Not specified'}
                       </p>
                     </div>
                     <div className="ml-2">
