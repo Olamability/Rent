@@ -297,16 +297,21 @@ const TenantDashboard = () => {
                 </div>
               </div>
 
-              {/* Applications Status */}
+              {/* Applications Status - Show All Applications */}
               {applications.length > 0 && (
                 <div className="bg-card rounded-xl border border-border">
                   <div className="p-6 border-b border-border">
                     <h2 className="text-lg font-semibold text-foreground">My Applications</h2>
+                    <p className="text-sm text-muted-foreground mt-1">Track all your property applications</p>
                   </div>
                   <div className="p-4">
                     <div className="space-y-3">
                       {applications.map((app) => (
-                        <div key={app.id} className="p-3 rounded-lg bg-secondary/50">
+                        <Link 
+                          key={app.id} 
+                          to="/tenant/rent"
+                          className="block p-3 rounded-lg bg-secondary/50 hover:bg-secondary/70 transition-colors"
+                        >
                           <div className="flex items-start justify-between mb-2">
                             <div>
                               <div className="font-medium text-foreground text-sm">{app.propertyName}</div>
@@ -317,9 +322,11 @@ const TenantDashboard = () => {
                                 ? 'bg-success/10 text-success' 
                                 : app.status === 'rejected'
                                 ? 'bg-destructive/10 text-destructive'
+                                : app.status === 'withdrawn'
+                                ? 'bg-muted/50 text-muted-foreground'
                                 : 'bg-warning/10 text-warning'
                             }`}>
-                              {app.status}
+                              {app.status === 'approved' ? 'Approved - Pay Now' : app.status}
                             </span>
                           </div>
                           <div className="text-xs text-muted-foreground">
@@ -328,7 +335,15 @@ const TenantDashboard = () => {
                           <div className="text-xs text-muted-foreground">
                             Move-in: {app.moveInDate}
                           </div>
-                        </div>
+                          {app.status === 'approved' && (
+                            <div className="mt-2 pt-2 border-t border-border/50">
+                              <p className="text-xs text-accent font-medium flex items-center gap-1">
+                                <CreditCard className="w-3 h-3" />
+                                Click to view invoice and make payment
+                              </p>
+                            </div>
+                          )}
+                        </Link>
                       ))}
                     </div>
                   </div>

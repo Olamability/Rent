@@ -14,7 +14,7 @@ import { ApplicationDialog } from "@/components/tenant/ApplicationDialog";
 import { useLocationSort } from "@/hooks/useLocationSort";
 import { formatDistance } from "@/lib/geolocation";
 import { formatCurrency } from "@/lib/utils";
-import { fetchAvailableProperties, type PropertyWithUnit } from "@/services/propertyService";
+import { fetchAvailableProperties, fetchAppliedPropertiesForTenant, type PropertyWithUnit } from "@/services/propertyService";
 import { useAuth } from "@/contexts/AuthContext";
 import { tenantNavLinks } from "@/config/navigation";
 
@@ -35,9 +35,24 @@ const PropertySearch = () => {
       try {
         setError(null);
         setLoading(true);
-        const data = await fetchAvailableProperties();
+        
+        // Fetch available properties
+        const availableData = await fetchAvailableProperties();
+        
+        // Fetch properties where user has applied (approved status)
+        let appliedData: PropertyWithUnit[] = [];
+        if (user?.id) {
+          try {
+            appliedData = await fetchAppliedPropertiesForTenant(user.id);
+          } catch (err) {
+            console.error('Error loading applied properties:', err);
+            // Don't fail the entire load if this fails
+          }
+        }
+        
         if (isMounted) {
-          setProperties(data);
+          // Combine both lists, with applied properties first
+          setProperties([...appliedData, ...availableData]);
           // No error if empty - that's a valid state
         }
       } catch (err) {
@@ -74,7 +89,7 @@ const PropertySearch = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [user?.id]);
 
   const {
     sortedProperties,
@@ -203,6 +218,12 @@ const PropertySearch = () => {
                         className="w-full h-48 object-cover"
                         loading="lazy"
                       />
+                      {property.listingStatus === 'applied' && (
+                        <Badge variant="default" className="absolute top-2 left-2 text-xs bg-accent">
+                          <span className="sr-only">Status: </span>
+                          Applied - Awaiting Payment
+                        </Badge>
+                      )}
                       {property.distance !== undefined && (
                         <Badge variant="secondary" className="absolute top-2 right-2 text-xs">
                           <MapPin className="w-3 h-3 mr-1" aria-hidden="true" />
@@ -241,21 +262,34 @@ const PropertySearch = () => {
                           >
                             <Link to={`/tenant/property/${property.id}`}>View Details</Link>
                           </Button>
-                          <Button 
-                            size="sm"
-                            className="w-full sm:flex-1 text-xs sm:text-sm h-9"
-                            onClick={() => {
-                              setSelectedProperty({ 
-                                id: property.id, // property ID
-                                name: property.name,
-                                unitId: property.unitId // unit ID
-                              });
-                              setIsApplicationDialogOpen(true);
-                            }}
-                            aria-label={`Apply for ${property.name}`}
-                          >
-                            Apply Now
-                          </Button>
+                          {property.listingStatus === 'applied' ? (
+                            <Button 
+                              size="sm"
+                              className="w-full sm:flex-1 text-xs sm:text-sm h-9"
+                              asChild
+                            >
+                              <Link to="/tenant/rent">
+                                <CreditCard className="w-4 h-4 mr-1" />
+                                Make Payment
+                              </Link>
+                            </Button>
+                          ) : (
+                            <Button 
+                              size="sm"
+                              className="w-full sm:flex-1 text-xs sm:text-sm h-9"
+                              onClick={() => {
+                                setSelectedProperty({ 
+                                  id: property.id, // property ID
+                                  name: property.name,
+                                  unitId: property.unitId // unit ID
+                                });
+                                setIsApplicationDialogOpen(true);
+                              }}
+                              aria-label={`Apply for ${property.name}`}
+                            >
+                              Apply Now
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
