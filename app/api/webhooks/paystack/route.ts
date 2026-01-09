@@ -162,17 +162,33 @@ export async function POST(request: NextRequest) {
       if (payment.invoice_id) {
         console.log('Updating invoice:', payment.invoice_id)
         
-        const { error: invoiceUpdateError } = await supabase
+        // First, fetch the invoice to get total_amount
+        const { data: invoice } = await supabase
           .from('invoices')
-          .update({
-            paid_amount: amount / 100, // Convert from kobo to naira
-            paid_at: paid_at || new Date().toISOString(),
-          })
+          .select('total_amount, paid_amount')
           .eq('id', payment.invoice_id)
+          .single()
         
-        if (invoiceUpdateError) {
-          console.error('Error updating invoice:', invoiceUpdateError)
-          // Don't fail the whole webhook if invoice update fails
+        if (invoice) {
+          const newPaidAmount = (invoice.paid_amount || 0) + (amount / 100) // Add payment to existing
+          const updateData: any = {
+            paid_amount: newPaidAmount,
+          }
+          
+          // Only set paid_at if invoice is fully paid
+          if (newPaidAmount >= invoice.total_amount) {
+            updateData.paid_at = paid_at || new Date().toISOString()
+          }
+          
+          const { error: invoiceUpdateError } = await supabase
+            .from('invoices')
+            .update(updateData)
+            .eq('id', payment.invoice_id)
+          
+          if (invoiceUpdateError) {
+            console.error('Error updating invoice:', invoiceUpdateError)
+            // Don't fail the whole webhook if invoice update fails
+          }
         }
       }
 
@@ -228,10 +244,22 @@ export async function POST(request: NextRequest) {
             .maybeSingle()
           
           if (!existingAgreement) {
-            // Get application details
+            // Get application details with only required fields
             const { data: application } = await supabase
               .from('property_applications')
-              .select('*, units!inner(*, properties!inner(*))')
+              .select(`
+                id, 
+                tenant_id, 
+                landlord_id, 
+                unit_id, 
+                move_in_date,
+                units!inner(
+                  rent_amount, 
+                  deposit, 
+                  property_id,
+                  properties!inner(name)
+                )
+              `)
               .eq('id', payment.application_id)
               .single()
             
