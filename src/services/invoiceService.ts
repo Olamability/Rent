@@ -451,3 +451,206 @@ function mapInvoiceFromDb(dbInvoice: any): Invoice {
     } : undefined,
   };
 }
+
+/**
+ * Generate monthly rent invoices for all active agreements
+ * This should be called by a scheduled job (cron) on the 1st of each month
+ */
+export async function generateMonthlyInvoicesForActiveAgreements(): Promise<{
+  success: number;
+  failed: number;
+  errors: Array<{ agreementId: string; error: string }>;
+}> {
+  try {
+    // Get all active agreements
+    const { data: agreements, error } = await supabase
+      .from('tenancy_agreements')
+      .select('id, tenant_id, landlord_id, unit_id, rent_amount')
+      .eq('agreement_status', 'active');
+
+    if (error) {
+      console.error('Error fetching active agreements:', error);
+      throw error;
+    }
+
+    if (!agreements || agreements.length === 0) {
+      return { success: 0, failed: 0, errors: [] };
+    }
+
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: [] as Array<{ agreementId: string; error: string }>,
+    };
+
+    // Calculate due date (e.g., 5th of next month)
+    const today = new Date();
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 5);
+    const dueDate = nextMonth.toISOString().split('T')[0];
+
+    // Generate invoice for each agreement
+    for (const agreement of agreements) {
+      try {
+        // Check if invoice already exists for this month
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+
+        const { data: existingInvoice } = await supabase
+          .from('invoices')
+          .select('id')
+          .eq('agreement_id', agreement.id)
+          .eq('invoice_type', 'monthly_rent')
+          .gte('invoice_date', startOfMonth)
+          .lte('invoice_date', endOfMonth)
+          .maybeSingle();
+
+        if (existingInvoice) {
+          // Invoice already exists for this month
+          continue;
+        }
+
+        // Create monthly rent invoice
+        await createMonthlyRentInvoice({
+          tenantId: agreement.tenant_id,
+          landlordId: agreement.landlord_id,
+          unitId: agreement.unit_id,
+          agreementId: agreement.id,
+          rentAmount: parseFloat(agreement.rent_amount),
+          dueDate,
+          notes: `Monthly rent for ${today.toLocaleString('default', { month: 'long', year: 'numeric' })}`,
+        });
+
+        results.success++;
+      } catch (err) {
+        console.error(`Error generating invoice for agreement ${agreement.id}:`, err);
+        results.failed++;
+        results.errors.push({
+          agreementId: agreement.id,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
+    }
+
+    return results;
+  } catch (error) {
+    console.error('Failed to generate monthly invoices:', error);
+    throw error;
+  }
+}
+
+/**
+ * End a lease and unlock the property
+ */
+export async function endLeaseAndUnlockProperty(data: {
+  agreementId: string;
+  depositRefundAmount?: number;
+  endReason?: string;
+}): Promise<void> {
+  try {
+    // Get agreement details
+    const { data: agreement, error: agreementError } = await supabase
+      .from('tenancy_agreements')
+      .select('*, units!inner(id, property_id)')
+      .eq('id', data.agreementId)
+      .single();
+
+    if (agreementError || !agreement) {
+      throw new Error('Agreement not found');
+    }
+
+    // Update agreement status to ended
+    const { error: updateError } = await supabase
+      .from('tenancy_agreements')
+      .update({
+        agreement_status: 'ended',
+        terminated_at: new Date().toISOString(),
+        termination_reason: data.endReason || 'Lease ended',
+      })
+      .eq('id', data.agreementId);
+
+    if (updateError) {
+      console.error('Error updating agreement:', updateError);
+      throw updateError;
+    }
+
+    // Unlock the unit (make it available)
+    await supabase
+      .from('units')
+      .update({
+        listing_status: 'available',
+        is_public_listing: true,
+      })
+      .eq('id', agreement.unit_id);
+
+    // If deposit refund is specified, create a refund record or notification
+    if (data.depositRefundAmount && data.depositRefundAmount > 0) {
+      await createNotification({
+        userId: agreement.tenant_id,
+        title: 'Deposit Refund Processed',
+        message: `Your security deposit of $${data.depositRefundAmount.toFixed(2)} has been processed for refund.`,
+        type: 'success',
+        actionUrl: '/tenant/payments',
+      });
+    }
+
+    // Notify tenant
+    await createNotification({
+      userId: agreement.tenant_id,
+      title: 'Lease Ended',
+      message: `Your lease has ended. ${data.depositRefundAmount ? `Security deposit of $${data.depositRefundAmount.toFixed(2)} will be refunded.` : ''}`,
+      type: 'info',
+      actionUrl: '/tenant/agreements',
+    });
+
+    // Notify landlord
+    await createNotification({
+      userId: agreement.landlord_id,
+      title: 'Lease Ended',
+      message: `The lease for Unit ${agreement.units.unit_number} has ended. The property is now available for new tenants.`,
+      type: 'info',
+      actionUrl: '/landlord/units',
+    });
+  } catch (error) {
+    console.error('Failed to end lease:', error);
+    throw error;
+  }
+}
+
+/**
+ * Helper function to map database invoice to TypeScript type
+ */
+function mapInvoiceFromDb(dbInvoice: any): Invoice {
+  return {
+    id: dbInvoice.id,
+    invoiceNumber: dbInvoice.invoice_number,
+    tenantId: dbInvoice.tenant_id,
+    landlordId: dbInvoice.landlord_id,
+    unitId: dbInvoice.unit_id,
+    agreementId: dbInvoice.agreement_id,
+    applicationId: dbInvoice.application_id,
+    invoiceType: dbInvoice.invoice_type,
+    invoiceDate: dbInvoice.invoice_date,
+    dueDate: dbInvoice.due_date,
+    rentAmount: parseFloat(dbInvoice.rent_amount || 0),
+    depositAmount: parseFloat(dbInvoice.deposit_amount || 0),
+    lateFeeAmount: parseFloat(dbInvoice.late_fee_amount || 0),
+    maintenanceAmount: parseFloat(dbInvoice.maintenance_amount || 0),
+    otherAmount: parseFloat(dbInvoice.other_amount || 0),
+    totalAmount: parseFloat(dbInvoice.total_amount),
+    paidAmount: parseFloat(dbInvoice.paid_amount || 0),
+    balanceDue: parseFloat(dbInvoice.balance_due || dbInvoice.total_amount - (dbInvoice.paid_amount || 0)),
+    status: dbInvoice.invoice_status,
+    paidAt: dbInvoice.paid_at,
+    lineItems: dbInvoice.line_items || [],
+    notes: dbInvoice.notes,
+    terms: dbInvoice.terms,
+    createdAt: dbInvoice.created_at,
+    updatedAt: dbInvoice.updated_at,
+    tenant: dbInvoice.tenant,
+    landlord: dbInvoice.landlord,
+    unit: dbInvoice.unit ? {
+      unitNumber: dbInvoice.unit.unit_number,
+      property: dbInvoice.unit.property,
+    } : undefined,
+  };
+}
