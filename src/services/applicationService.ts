@@ -202,7 +202,14 @@ export async function fetchApplicationsByLandlord(landlordId: string): Promise<A
       .from('property_applications')
       .select(`
         *,
-        units(unit_number, property_id, properties(landlord_id, name, address, city)),
+        units!inner(
+          unit_number, 
+          property_id,
+          rent_amount,
+          bedrooms,
+          bathrooms,
+          properties!inner(landlord_id, name, address, city)
+        ),
         tenant:users!property_applications_tenant_id_fkey(name, email, phone)
       `)
       .eq('landlord_id', landlordId)
@@ -240,7 +247,14 @@ export async function fetchApplicationsByTenant(tenantId: string): Promise<Appli
       .from('property_applications')
       .select(`
         *,
-        units(unit_number, rent_amount, bedrooms, bathrooms, property_id, properties(name, address, city))
+        units!inner(
+          unit_number, 
+          rent_amount, 
+          bedrooms, 
+          bathrooms, 
+          property_id,
+          properties!inner(name, address, city, landlord_id)
+        )
       `)
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false });
@@ -282,7 +296,13 @@ export async function updateApplicationStatus(
       .from('property_applications')
       .select(`
         *,
-        units(unit_number, rent_amount, deposit, property_id, properties(name, landlord_id)),
+        units!inner(
+          unit_number, 
+          rent_amount, 
+          deposit, 
+          property_id,
+          properties!inner(name, landlord_id)
+        ),
         tenant:users!property_applications_tenant_id_fkey(name)
       `)
       .eq('id', applicationId)
@@ -362,7 +382,14 @@ export async function fetchApplicationById(applicationId: string): Promise<Appli
       .from('property_applications')
       .select(`
         *,
-        units(unit_number, rent_amount, bedrooms, bathrooms, property_id, properties(name, address, city)),
+        units!inner(
+          unit_number, 
+          rent_amount, 
+          bedrooms, 
+          bathrooms, 
+          property_id,
+          properties!inner(name, address, city, landlord_id)
+        ),
         tenant:users!property_applications_tenant_id_fkey(name, email, phone)
       `)
       .eq('id', applicationId)
@@ -402,7 +429,11 @@ export async function withdrawApplication(
       .from('property_applications')
       .select(`
         *,
-        units(unit_number, property_id, properties(name, landlord_id))
+        units!inner(
+          unit_number, 
+          property_id,
+          properties!inner(name, landlord_id)
+        )
       `)
       .eq('id', applicationId)
       .single();
