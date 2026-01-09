@@ -9,7 +9,8 @@ import {
   CreditCard, 
   FileText, 
   Home,
-  AlertCircle 
+  AlertCircle,
+  MapPin
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { fetchApplicationsByTenant } from "@/services/applicationService";
@@ -18,10 +19,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WithdrawApplicationDialog } from "@/components/tenant/WithdrawApplicationDialog";
 
+const DEFAULT_PROPERTY_IMAGE = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=200&h=150&fit=crop';
+
 interface ApplicationWithPayment {
   id: string;
   propertyName?: string;
   unitNumber?: string;
+  propertyAddress?: string;
+  propertyImage?: string;
+  rentAmount?: number;
+  depositAmount?: number;
   status: 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'cancelled';
   moveInDate: Date;
   submittedAt: Date;
@@ -61,13 +68,27 @@ export const ApplicationStatusCard = () => {
         // Fetch payment status for approved applications
         const appsWithPayments = await Promise.all(
           activeApps.map(async (app) => {
+            // Extract property details
+            const propertyName = app.properties?.name || 'Unknown Property';
+            const unitNumber = app.units?.unit_number || 'N/A';
+            const propertyAddress = app.properties 
+              ? `${app.properties.address || ''}, ${app.properties.city || ''}`.trim()
+              : '';
+            const propertyImage = (app.properties as any)?.images?.[0];
+            const rentAmount = app.units?.rent_amount;
+            const depositAmount = app.units?.deposit;
+            
             if (app.status === 'approved') {
               try {
                 const payment = await fetchApplicationPayment(app.id);
                 return {
                   ...app,
-                  propertyName: app.properties?.name,
-                  unitNumber: app.units?.unit_number,
+                  propertyName,
+                  unitNumber,
+                  propertyAddress,
+                  propertyImage,
+                  rentAmount,
+                  depositAmount,
                   payment: payment ? {
                     id: payment.id,
                     amount: payment.amount,
@@ -79,15 +100,23 @@ export const ApplicationStatusCard = () => {
                 console.error('Error fetching payment for application:', app.id, err);
                 return {
                   ...app,
-                  propertyName: app.properties?.name,
-                  unitNumber: app.units?.unit_number,
+                  propertyName,
+                  unitNumber,
+                  propertyAddress,
+                  propertyImage,
+                  rentAmount,
+                  depositAmount,
                 };
               }
             }
             return {
               ...app,
-              propertyName: app.properties?.name,
-              unitNumber: app.units?.unit_number,
+              propertyName,
+              unitNumber,
+              propertyAddress,
+              propertyImage,
+              rentAmount,
+              depositAmount,
             };
           })
         );
@@ -118,13 +147,27 @@ export const ApplicationStatusCard = () => {
         // Fetch payment info for approved applications
         Promise.all(
           activeApps.map(async (app) => {
+            // Extract property details
+            const propertyName = app.properties?.name || 'Unknown Property';
+            const unitNumber = app.units?.unit_number || 'N/A';
+            const propertyAddress = app.properties 
+              ? `${app.properties.address || ''}, ${app.properties.city || ''}`.trim()
+              : '';
+            const propertyImage = (app.properties as any)?.images?.[0];
+            const rentAmount = app.units?.rent_amount;
+            const depositAmount = app.units?.deposit;
+            
             if (app.status === 'approved') {
               try {
                 const payment = await fetchApplicationPayment(app.id);
                 return {
                   ...app,
-                  propertyName: app.properties?.name,
-                  unitNumber: app.units?.unit_number,
+                  propertyName,
+                  unitNumber,
+                  propertyAddress,
+                  propertyImage,
+                  rentAmount,
+                  depositAmount,
                   payment: payment ? {
                     id: payment.id,
                     amount: payment.amount,
@@ -136,15 +179,23 @@ export const ApplicationStatusCard = () => {
                 console.error('Error fetching payment for application:', app.id, err);
                 return {
                   ...app,
-                  propertyName: app.properties?.name,
-                  unitNumber: app.units?.unit_number,
+                  propertyName,
+                  unitNumber,
+                  propertyAddress,
+                  propertyImage,
+                  rentAmount,
+                  depositAmount,
                 };
               }
             }
             return {
               ...app,
-              propertyName: app.properties?.name,
-              unitNumber: app.units?.unit_number,
+              propertyName,
+              unitNumber,
+              propertyAddress,
+              propertyImage,
+              rentAmount,
+              depositAmount,
             };
           })
         ).then(appsWithPayments => {
@@ -216,7 +267,9 @@ export const ApplicationStatusCard = () => {
       }
       
       if (app.payment.status === 'pending') {
-        return `Please complete your payment of $${app.payment.amount.toLocaleString()} to proceed with your tenancy.`;
+        const depositText = app.depositAmount ? ` + ₦${app.depositAmount.toLocaleString()} deposit` : '';
+        const rentText = app.rentAmount ? `₦${app.rentAmount.toLocaleString()}` : '$' + app.payment.amount.toLocaleString();
+        return `Your application has been approved! Please complete your payment of ${rentText}${depositText} to proceed with your tenancy.`;
       }
       
       if (app.payment.status === 'paid') {
@@ -295,16 +348,37 @@ export const ApplicationStatusCard = () => {
           
           {applications.map((app) => (
             <div key={app.id} className="mb-4 last:mb-0">
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <p className="font-medium text-foreground">
-                    {app.propertyName} - Unit {app.unitNumber}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Move-in date: {new Date(app.moveInDate).toLocaleDateString()}
-                  </p>
+              {/* Property Details with Image */}
+              <div className="flex gap-4 mb-3">
+                <img 
+                  src={app.propertyImage || DEFAULT_PROPERTY_IMAGE} 
+                  alt={app.propertyName || 'Property'}
+                  className="w-24 h-20 rounded-lg object-cover flex-shrink-0"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = DEFAULT_PROPERTY_IMAGE;
+                  }}
+                />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground text-base">
+                        {app.propertyName || 'Property'} - Unit {app.unitNumber || 'N/A'}
+                      </p>
+                      {app.propertyAddress && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          {app.propertyAddress}
+                        </p>
+                      )}
+                      <p className="text-sm text-muted-foreground">
+                        Move-in date: {new Date(app.moveInDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="ml-2">
+                      {getStatusBadge(app.status)}
+                    </div>
+                  </div>
                 </div>
-                {getStatusBadge(app.status)}
               </div>
               
               <Alert className="mt-2">
