@@ -299,13 +299,17 @@ const TenantDashboard = () => {
               </div>
 
               {/* Applications Status - Show All Applications */}
-              {applications.length > 0 && (
-                <div className="bg-card rounded-xl border border-border">
-                  <div className="p-6 border-b border-border">
-                    <h2 className="text-lg font-semibold text-foreground">My Applications</h2>
-                    <p className="text-sm text-muted-foreground mt-1">Track all your property applications</p>
-                  </div>
-                  <div className="p-4">
+              <div className="bg-card rounded-xl border border-border">
+                <div className="p-6 border-b border-border">
+                  <h2 className="text-lg font-semibold text-foreground">My Applications</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Track all your property applications</p>
+                </div>
+                <div className="p-4">
+                  {loading ? (
+                    <div className="flex items-center justify-center py-6">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-accent"></div>
+                    </div>
+                  ) : applications.length > 0 ? (
                     <div className="space-y-3">
                       {applications.map((app) => (
                         <Link 
@@ -347,9 +351,14 @@ const TenantDashboard = () => {
                         </Link>
                       ))}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <p className="text-sm text-muted-foreground mb-2">No applications yet</p>
+                      <p className="text-xs text-muted-foreground">Your application history will appear here</p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
 

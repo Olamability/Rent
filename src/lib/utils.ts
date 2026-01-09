@@ -113,3 +113,39 @@ export function safeParseInt(
 export function formatCurrency(amount: number): string {
   return `₦${amount.toLocaleString()}`;
 }
+
+/**
+ * Safely format a date with fallback for undefined/null dates
+ * @param date - The date to format (can be Date, string, null, or undefined)
+ * @param fallback - The fallback text if date is invalid (default: 'Not specified')
+ * @param options - Intl.DateTimeFormat options
+ * @returns Formatted date string or fallback
+ * 
+ * @example
+ * formatDateSafely(new Date('2026-01-15')) // "Jan 15, 2026"
+ * formatDateSafely(null) // "Not specified"
+ * formatDateSafely(undefined, 'TBD') // "TBD"
+ * formatDateSafely('2026-01-15') // "Jan 15, 2026"
+ */
+export function formatDateSafely(
+  date: Date | string | null | undefined,
+  fallback: string = 'Not specified',
+  options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
+): string {
+  if (!date) {
+    return fallback;
+  }
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) {
+      return fallback;
+    }
+    
+    return dateObj.toLocaleDateString('en-US', options);
+  } catch (error) {
+    return fallback;
+  }
+}

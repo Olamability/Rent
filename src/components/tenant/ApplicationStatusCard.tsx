@@ -18,6 +18,7 @@ import { fetchApplicationPayment } from "@/services/tenancyFlowService";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WithdrawApplicationDialog } from "@/components/tenant/WithdrawApplicationDialog";
+import { formatDateSafely } from "@/lib/utils";
 
 const DEFAULT_PROPERTY_IMAGE = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=200&h=150&fit=crop';
 
@@ -30,7 +31,7 @@ interface ApplicationWithPayment {
   rentAmount?: number;
   depositAmount?: number;
   status: 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'cancelled';
-  moveInDate: Date;
+  moveInDate?: Date;
   submittedAt: Date;
   payment?: {
     id: string;
@@ -343,7 +344,7 @@ export const ApplicationStatusCard = () => {
                         </p>
                       )}
                       <p className="text-sm text-muted-foreground">
-                        Move-in date: {new Date(app.moveInDate).toLocaleDateString()}
+                        Move-in date: {formatDateSafely(app.moveInDate)}
                       </p>
                     </div>
                     <div className="ml-2">
