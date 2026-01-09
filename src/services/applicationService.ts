@@ -314,10 +314,10 @@ export async function updateApplicationStatus(
         .update({ listing_status: 'applied' })
         .eq('id', application.unit_id);
 
-      // Create payment record for approved application
-      const { createApplicationPayment } = await import('./tenancyFlowService');
+      // Create invoice for approved application
+      const { createApplicationInvoice } = await import('./invoiceService');
       try {
-        await createApplicationPayment({
+        await createApplicationInvoice({
           applicationId,
           tenantId: application.tenant_id,
           landlordId: application.units?.properties?.landlord_id || application.landlord_id,
@@ -325,8 +325,8 @@ export async function updateApplicationStatus(
           rentAmount: application.units.rent_amount,
           depositAmount: application.units.deposit,
         });
-      } catch (paymentError) {
-        console.error('Failed to create payment for application:', paymentError);
+      } catch (invoiceError) {
+        console.error('Failed to create invoice for application:', invoiceError);
         // Don't fail the approval, just log the error
       }
     }

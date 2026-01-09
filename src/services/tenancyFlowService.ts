@@ -148,8 +148,82 @@ export async function processPaymentCompletion(data: {
   throw new Error(
     'Direct payment status updates are disabled for security. ' +
     'Payments are confirmed automatically via Paystack webhook. ' +
-    'Use pollPaymentStatus() to check payment status.'
+    'Use pollPaymentStatus() to check for payment completion.'
   );
+}
+
+/**
+ * Generate tenancy agreement after payment completion
+ * This should be called by the webhook or backend process after payment confirmation
+ */
+export async function generateAgreementAfterPayment(data: {
+  paymentId: string;
+  applicationId: string;
+  invoiceId?: string;
+}): Promise<string> {
+  try {
+    // Get payment and application details
+    const { data: payment, error: paymentError } = await supabase
+      .from('payments')
+      .select(`
+        *,
+        applications:property_applications!payments_application_id_fkey(
+          *,
+          units(*, properties(*))
+        )
+      `)
+      .eq('id', data.paymentId)
+      .single();
+
+    if (paymentError || !payment) {
+      throw new Error('Payment not found');
+    }
+
+    const application = payment.applications;
+    if (!application) {
+      throw new Error('Application not found for payment');
+    }
+
+    // Create tenancy agreement
+    const { createTenancyAgreement } = await import('./agreementService');
+    
+    const startDate = new Date(application.move_in_date || new Date());
+    const endDate = new Date(startDate);
+    endDate.setFullYear(endDate.getFullYear() + 1); // Default 1 year lease
+
+    const agreement = await createTenancyAgreement({
+      tenantId: application.tenant_id,
+      landlordId: application.landlord_id,
+      unitId: application.unit_id,
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+      rentAmount: application.units.rent_amount,
+      depositAmount: application.units.deposit || 0,
+      status: 'draft',
+    });
+
+    // Send notifications
+    await createNotification({
+      userId: application.tenant_id,
+      title: 'Agreement Ready for Signature',
+      message: `Your tenancy agreement for ${application.units.properties.name} is ready. Please review and sign the agreement to complete the process.`,
+      type: 'info',
+      actionUrl: '/tenant/agreements',
+    });
+
+    await createNotification({
+      userId: application.landlord_id,
+      title: 'New Agreement Generated',
+      message: `A tenancy agreement has been generated for ${application.units.properties.name}. Please review and sign.`,
+      type: 'info',
+      actionUrl: '/landlord/tenancy-agreements',
+    });
+
+    return agreement.id;
+  } catch (error) {
+    console.error('Failed to generate agreement after payment:', error);
+    throw error;
+  }
 }
 
 /**
