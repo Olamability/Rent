@@ -74,6 +74,7 @@ export const ApplicationStatusCard = () => {
             const propertyAddress = app.properties 
               ? `${app.properties.address || ''}, ${app.properties.city || ''}`.trim()
               : '';
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const propertyImage = (app.properties as any)?.images?.[0];
             const rentAmount = app.units?.rent_amount;
             const depositAmount = app.units?.deposit;
@@ -153,6 +154,7 @@ export const ApplicationStatusCard = () => {
             const propertyAddress = app.properties 
               ? `${app.properties.address || ''}, ${app.properties.city || ''}`.trim()
               : '';
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const propertyImage = (app.properties as any)?.images?.[0];
             const rentAmount = app.units?.rent_amount;
             const depositAmount = app.units?.deposit;
