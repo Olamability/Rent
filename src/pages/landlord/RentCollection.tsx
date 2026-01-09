@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { ReceiptViewer } from "@/components/shared/ReceiptViewer";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchLandlordPayments, getLandlordPaymentStatistics } from "@/services/paymentService";
+import { fetchLandlordInvoices, type Invoice } from "@/services/invoiceService";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 
 const navLinks = [
   { icon: Home, label: "Dashboard", href: "/landlord/dashboard" },
@@ -28,6 +31,7 @@ const RentCollection = () => {
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [isReceiptViewerOpen, setIsReceiptViewerOpen] = useState(false);
   const [payments, setPayments] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [stats, setStats] = useState([
     { label: 'Collected This Month', value: '$0', icon: CheckCircle2, color: 'text-success' },
     { label: 'Pending', value: '$0', icon: Clock, color: 'text-warning' },
@@ -49,12 +53,16 @@ const RentCollection = () => {
       
       try {
         setLoading(true);
-        const [paymentsData, statsData] = await Promise.all([
+        const [paymentsData, statsData, invoicesData] = await Promise.all([
           fetchLandlordPayments(user.id),
-          getLandlordPaymentStatistics(user.id)
+          getLandlordPaymentStatistics(user.id),
+          fetchLandlordInvoices(user.id)
         ]);
         
         if (isMounted) {
+          // Set invoices
+          setInvoices(invoicesData);
+          
           // Transform payments data
           const transformedPayments = paymentsData.map((payment: unknown) => {
             const tenancyAgreements = payment.tenancy_agreements as { units?: { unit_number?: string } } | null;
@@ -129,6 +137,54 @@ const RentCollection = () => {
           </div>
         ))}
       </div>
+
+      {/* Invoices Section */}
+      {invoices.length > 0 && (
+        <Card className="p-6 mb-6">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Recent Invoices</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="border-b border-border">
+                <tr className="text-left">
+                  <th className="p-4 font-semibold text-foreground">Invoice #</th>
+                  <th className="p-4 font-semibold text-foreground">Tenant</th>
+                  <th className="p-4 font-semibold text-foreground">Property/Unit</th>
+                  <th className="p-4 font-semibold text-foreground">Type</th>
+                  <th className="p-4 font-semibold text-foreground">Amount</th>
+                  <th className="p-4 font-semibold text-foreground">Due Date</th>
+                  <th className="p-4 font-semibold text-foreground">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.slice(0, 10).map((invoice) => (
+                  <tr key={invoice.id} className="border-b border-border/50 last:border-0 hover:bg-secondary/50">
+                    <td className="p-4 text-foreground font-medium">{invoice.invoiceNumber}</td>
+                    <td className="p-4 text-foreground">{invoice.tenant?.name || 'N/A'}</td>
+                    <td className="p-4 text-foreground">
+                      {invoice.unit?.property?.name || 'N/A'} - Unit {invoice.unit?.unitNumber || 'N/A'}
+                    </td>
+                    <td className="p-4 text-foreground text-sm">
+                      {invoice.invoiceType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                    </td>
+                    <td className="p-4 text-foreground font-semibold">${invoice.totalAmount.toLocaleString()}</td>
+                    <td className="p-4 text-foreground">{new Date(invoice.dueDate).toLocaleDateString()}</td>
+                    <td className="p-4">
+                      <Badge 
+                        variant={
+                          invoice.status === 'paid' ? 'default' : 
+                          invoice.status === 'overdue' ? 'destructive' : 'secondary'
+                        }
+                      >
+                        {invoice.status.toUpperCase()}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       <div className="bg-card rounded-xl border border-border">
         <div className="p-6 border-b border-border">
