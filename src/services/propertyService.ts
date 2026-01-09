@@ -63,7 +63,7 @@ export interface Unit {
   viewCount?: number;
 }
 
-// Database row interface (snake_case from Supabase)
+// Database row interfaces (snake_case from Supabase)
 interface DbUnit {
   id: string;
   property_id: string;
@@ -81,6 +81,29 @@ interface DbUnit {
   is_public_listing?: boolean;
   is_featured?: boolean;
   view_count?: number;
+}
+
+interface DbProperty {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  property_type: string;
+  description?: string;
+  images?: string[];
+  amenities?: string[];
+  latitude?: number;
+  longitude?: number;
+}
+
+interface DbApplicationWithUnit {
+  unit_id: string;
+  application_status: string;
+  units: DbUnit & {
+    properties: DbProperty;
+  };
 }
 
 export interface PropertyWithUnit extends Property {
@@ -283,6 +306,116 @@ export async function fetchAvailableProperties(): Promise<PropertyWithUnit[]> {
     }
     const appError = parseSupabaseError(error);
     logError(appError, { function: 'fetchAvailableProperties' });
+    throw appError;
+  }
+}
+
+/**
+ * Fetch properties where the tenant has an active application (approved but not yet paid)
+ * These should appear in the marketplace with "Applied" badge
+ */
+export async function fetchAppliedPropertiesForTenant(tenantId: string): Promise<PropertyWithUnit[]> {
+  try {
+    // Validate tenant ID
+    validateOrThrow(
+      isValidUUID(tenantId),
+      'Invalid tenant ID format'
+    );
+
+    // Get units where this tenant has an approved application
+    // Note: We filter by both application_status='approved' AND listing_status='applied'
+    // These statuses are synchronized by the application approval workflow:
+    // - When landlord approves application -> listing_status changes to 'applied'
+    // - When application is withdrawn -> listing_status reverts to 'available'
+    // This ensures consistency between application state and unit availability
+    const { data, error } = await supabase
+      .from('property_applications')
+      .select(`
+        unit_id,
+        application_status,
+        units!inner (
+          id,
+          property_id,
+          unit_number,
+          bedrooms,
+          bathrooms,
+          rent_amount,
+          square_feet,
+          listing_status,
+          available_date,
+          properties (
+            id,
+            name,
+            address,
+            city,
+            state,
+            zip_code,
+            property_type,
+            description,
+            images,
+            amenities,
+            latitude,
+            longitude
+          )
+        )
+      `)
+      .eq('tenant_id', tenantId)
+      .eq('application_status', 'approved')
+      .eq('units.listing_status', 'applied');
+
+    if (error) {
+      const appError = parseSupabaseError(error);
+      logError(appError, { function: 'fetchAppliedPropertiesForTenant', tenantId });
+      throw appError;
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Transform the data to match the expected format
+    return data.map((application: DbApplicationWithUnit) => {
+      const unit = application.units;
+      const property = unit.properties;
+      
+      if (!property) {
+        throw new AppError(
+          'Property data missing for unit',
+          ErrorCode.DATABASE_ERROR,
+          500,
+          { unitId: unit.id }
+        );
+      }
+      
+      return {
+        id: property.id,
+        name: sanitizeString(property.name),
+        address: sanitizeString(`${property.address}, ${property.city}, ${property.state}`),
+        city: sanitizeString(property.city),
+        state: sanitizeString(property.state),
+        zipCode: sanitizeString(property.zip_code),
+        propertyType: property.property_type,
+        description: sanitizeString(property.description || ''),
+        images: Array.isArray(property.images) ? property.images : [],
+        amenities: Array.isArray(property.amenities) ? property.amenities.map(sanitizeString) : [],
+        latitude: property.latitude,
+        longitude: property.longitude,
+        unitId: unit.id,
+        unitNumber: sanitizeString(unit.unit_number),
+        bedrooms: unit.bedrooms,
+        bathrooms: unit.bathrooms,
+        rentAmount: unit.rent_amount,
+        squareFeet: unit.square_feet,
+        listingStatus: 'applied' as const,
+        image: property.images?.[0] || DEFAULT_PROPERTY_IMAGE,
+      };
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    const appError = parseSupabaseError(error);
+    logError(appError, { function: 'fetchAppliedPropertiesForTenant' });
     throw appError;
   }
 }

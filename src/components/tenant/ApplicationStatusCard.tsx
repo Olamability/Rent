@@ -75,7 +75,8 @@ export const ApplicationStatusCard = () => {
         setLoading(true);
         const apps = await fetchApplicationsByTenant(user.id);
         
-        // Get only applications that need action (pending or approved with payment pending)
+        // Get only applications that need action (pending or approved)
+        // Show rejected and withdrawn in "My Applications" section on dashboard instead
         const activeApps = apps.filter(app => 
           app.status === 'pending' || app.status === 'approved'
         );

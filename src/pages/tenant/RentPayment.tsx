@@ -190,7 +190,7 @@ const RentPayment = () => {
                 </AlertDescription>
               </Alert>
               
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
                 <div>
                   <Badge className="mb-2">Application Payment</Badge>
                   <h2 className="text-2xl font-bold text-foreground mb-2">Initial Payment Required</h2>
@@ -203,13 +203,42 @@ const RentPayment = () => {
                 </div>
                 <div className="text-right">
                   <div className="text-4xl font-bold text-accent">
-                    ${pendingApplicationPayment.amount.toLocaleString()}
+                    ₦{pendingApplicationPayment.amount.toLocaleString()}
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
                     Due: {new Date(pendingApplicationPayment.dueDate).toLocaleDateString()}
                   </div>
                 </div>
               </div>
+
+              {/* Invoice Breakdown */}
+              {invoices.length > 0 && (
+                <div className="mb-6 p-4 bg-background/50 rounded-lg">
+                  <h3 className="text-sm font-semibold text-foreground mb-3">Invoice Breakdown</h3>
+                  {invoices
+                    .filter(inv => inv.applicationId === pendingApplicationPayment.applicationId && inv.status === 'pending')
+                    .map(invoice => (
+                      <div key={invoice.id} className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Invoice #:</span>
+                          <span className="font-medium">{invoice.invoiceNumber}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Rent Amount:</span>
+                          <span>₦{invoice.rentAmount.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Security Deposit:</span>
+                          <span>₦{invoice.depositAmount.toLocaleString()}</span>
+                        </div>
+                        <div className="border-t border-border pt-2 mt-2 flex justify-between font-semibold">
+                          <span>Total Amount:</span>
+                          <span className="text-accent">₦{invoice.totalAmount.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <Button 
