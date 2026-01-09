@@ -96,6 +96,15 @@ const TenantDashboard = () => {
     }
   };
 
+  const handleOpenWithdrawDialog = (app: { id: string; propertyName: string; unitNumber: string }) => {
+    setSelectedApplication({
+      id: app.id,
+      propertyName: app.propertyName,
+      unitNumber: app.unitNumber,
+    });
+    setIsWithdrawDialogOpen(true);
+  };
+
   const paymentHistory = dashboardData?.payments || [];
   const maintenanceRequests = dashboardData?.maintenanceRequests || [];
   const documents = dashboardData?.documents || [];
@@ -375,12 +384,11 @@ const TenantDashboard = () => {
                                 className="text-destructive hover:bg-destructive/10"
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  setSelectedApplication({
+                                  handleOpenWithdrawDialog({
                                     id: app.id,
                                     propertyName: app.propertyName,
                                     unitNumber: app.unitNumber,
                                   });
-                                  setIsWithdrawDialogOpen(true);
                                 }}
                               >
                                 <XCircle className="w-3 h-3 mr-1" />
@@ -396,12 +404,11 @@ const TenantDashboard = () => {
                                 className="text-destructive hover:bg-destructive/10 w-full"
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  setSelectedApplication({
+                                  handleOpenWithdrawDialog({
                                     id: app.id,
                                     propertyName: app.propertyName,
                                     unitNumber: app.unitNumber,
                                   });
-                                  setIsWithdrawDialogOpen(true);
                                 }}
                               >
                                 <XCircle className="w-3 h-3 mr-1" />
