@@ -264,17 +264,26 @@ const PropertySearch = () => {
               ))}
             </section>
           ) : (
-            <EmptyState
-              icon={<Home className="w-16 h-16" />}
-              title={searchQuery ? "No Properties Found" : "No Properties Available"}
-              description={
-                searchQuery 
-                  ? "No properties match your search criteria. Try adjusting your search terms."
-                  : "There are no available properties at this time. Please check back later or contact support if you believe this is an error."
-              }
-              actionLabel={searchQuery ? "Clear Search" : undefined}
-              onAction={searchQuery ? () => setSearchQuery("") : undefined}
-            />
+            <>
+              <EmptyState
+                icon={<Home className="w-16 h-16" />}
+                title={searchQuery ? "No Properties Found" : "No Properties Available"}
+                description={
+                  searchQuery 
+                    ? "No properties match your search criteria. Try adjusting your search terms."
+                    : "There are no available properties at this time. If you have an approved application, check your dashboard to proceed with payment and signing."
+                }
+                actionLabel={searchQuery ? "Clear Search" : undefined}
+                onAction={searchQuery ? () => setSearchQuery("") : undefined}
+              />
+              {!searchQuery && (
+                <div className="flex justify-center mt-4">
+                  <Button variant="outline" asChild>
+                    <Link to="/tenant/dashboard">Go to Dashboard</Link>
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
