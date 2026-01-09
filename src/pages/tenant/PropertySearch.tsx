@@ -24,6 +24,7 @@ const PropertySearch = () => {
   const [selectedProperty, setSelectedProperty] = useState<{ id: string; name: string; unitId: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [properties, setProperties] = useState<PropertyWithUnit[]>([]);
+  const [userAppliedUnitIds, setUserAppliedUnitIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,24 +37,24 @@ const PropertySearch = () => {
         setError(null);
         setLoading(true);
         
-        // Fetch available properties
-        const availableData = await fetchAvailableProperties();
+        // Fetch all marketplace properties (available, applied, rented)
+        const allProperties = await fetchAvailableProperties();
         
-        // Fetch properties where user has applied (approved status)
-        let appliedData: PropertyWithUnit[] = [];
+        // Fetch properties where user has applied (approved status) to identify them
+        let userAppliedUnits = new Set<string>();
         if (user?.id) {
           try {
-            appliedData = await fetchAppliedPropertiesForTenant(user.id);
+            const appliedData = await fetchAppliedPropertiesForTenant(user.id);
+            userAppliedUnits = new Set(appliedData.map(p => p.unitId));
           } catch (err) {
             // Log but don't fail the entire load if this fails
-            // User will still see available properties
-            console.error('Error loading applied properties (non-critical):', err);
+            console.error('Error loading user applied properties (non-critical):', err);
           }
         }
         
         if (isMounted) {
-          // Combine both lists, with applied properties first
-          setProperties([...appliedData, ...availableData]);
+          setProperties(allProperties);
+          setUserAppliedUnitIds(userAppliedUnits);
           // No error if empty - that's a valid state
         }
       } catch (err) {
@@ -219,10 +220,23 @@ const PropertySearch = () => {
                         className="w-full h-48 object-cover"
                         loading="lazy"
                       />
-                      {property.listingStatus === 'applied' && (
-                        <Badge variant="default" className="absolute top-2 left-2 text-xs bg-accent">
+                      {/* Status badge */}
+                      {property.listingStatus === 'applied' && userAppliedUnitIds.has(property.unitId) && (
+                        <Badge variant="default" className="absolute top-2 left-2 text-xs bg-yellow-600 hover:bg-yellow-700">
                           <span className="sr-only">Status: </span>
                           Applied - Awaiting Payment
+                        </Badge>
+                      )}
+                      {property.listingStatus === 'applied' && !userAppliedUnitIds.has(property.unitId) && (
+                        <Badge variant="default" className="absolute top-2 left-2 text-xs bg-orange-600 hover:bg-orange-700">
+                          <span className="sr-only">Status: </span>
+                          Applied - Pending Payment
+                        </Badge>
+                      )}
+                      {property.listingStatus === 'rented' && (
+                        <Badge variant="default" className="absolute top-2 left-2 text-xs bg-red-600 hover:bg-red-700">
+                          <span className="sr-only">Status: </span>
+                          Occupied
                         </Badge>
                       )}
                       {property.distance !== undefined && (
@@ -263,7 +277,8 @@ const PropertySearch = () => {
                           >
                             <Link to={`/tenant/property/${property.id}`}>View Details</Link>
                           </Button>
-                          {property.listingStatus === 'applied' ? (
+                          {/* Show "Make Payment" button only for properties where current user has applied */}
+                          {property.listingStatus === 'applied' && userAppliedUnitIds.has(property.unitId) ? (
                             <Button 
                               size="sm"
                               className="w-full sm:flex-1 text-xs sm:text-sm h-9"
@@ -274,7 +289,7 @@ const PropertySearch = () => {
                                 Make Payment
                               </Link>
                             </Button>
-                          ) : (
+                          ) : property.listingStatus === 'available' ? (
                             <Button 
                               size="sm"
                               className="w-full sm:flex-1 text-xs sm:text-sm h-9"
@@ -289,6 +304,15 @@ const PropertySearch = () => {
                               aria-label={`Apply for ${property.name}`}
                             >
                               Apply Now
+                            </Button>
+                          ) : (
+                            <Button 
+                              size="sm"
+                              className="w-full sm:flex-1 text-xs sm:text-sm h-9"
+                              disabled
+                              aria-label={`${property.name} is not available`}
+                            >
+                              Not Available
                             </Button>
                           )}
                         </div>
