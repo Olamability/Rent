@@ -8,7 +8,8 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  LogOut
+  LogOut,
+  CreditCard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";

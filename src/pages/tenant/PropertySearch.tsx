@@ -45,8 +45,9 @@ const PropertySearch = () => {
           try {
             appliedData = await fetchAppliedPropertiesForTenant(user.id);
           } catch (err) {
-            console.error('Error loading applied properties:', err);
-            // Don't fail the entire load if this fails
+            // Log but don't fail the entire load if this fails
+            // User will still see available properties
+            console.error('Error loading applied properties (non-critical):', err);
           }
         }
         

@@ -63,7 +63,7 @@ export interface Unit {
   viewCount?: number;
 }
 
-// Database row interface (snake_case from Supabase)
+// Database row interfaces (snake_case from Supabase)
 interface DbUnit {
   id: string;
   property_id: string;
@@ -81,6 +81,29 @@ interface DbUnit {
   is_public_listing?: boolean;
   is_featured?: boolean;
   view_count?: number;
+}
+
+interface DbProperty {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  property_type: string;
+  description?: string;
+  images?: string[];
+  amenities?: string[];
+  latitude?: number;
+  longitude?: number;
+}
+
+interface DbApplicationWithUnit {
+  unit_id: string;
+  application_status: string;
+  units: DbUnit & {
+    properties: DbProperty;
+  };
 }
 
 export interface PropertyWithUnit extends Property {
@@ -300,6 +323,11 @@ export async function fetchAppliedPropertiesForTenant(tenantId: string): Promise
     );
 
     // Get units where this tenant has an approved application
+    // Note: We filter by both application_status='approved' AND listing_status='applied'
+    // These statuses are synchronized by the application approval workflow:
+    // - When landlord approves application -> listing_status changes to 'applied'
+    // - When application is withdrawn -> listing_status reverts to 'available'
+    // This ensures consistency between application state and unit availability
     const { data, error } = await supabase
       .from('property_applications')
       .select(`
@@ -346,7 +374,7 @@ export async function fetchAppliedPropertiesForTenant(tenantId: string): Promise
     }
 
     // Transform the data to match the expected format
-    return data.map((application: any) => {
+    return data.map((application: DbApplicationWithUnit) => {
       const unit = application.units;
       const property = unit.properties;
       
