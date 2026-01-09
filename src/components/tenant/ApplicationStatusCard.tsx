@@ -52,6 +52,21 @@ export const ApplicationStatusCard = () => {
   const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<ApplicationWithPayment | null>(null);
 
+  // Helper function to extract property details from application
+  const extractPropertyDetails = (app: any) => {
+    return {
+      propertyName: app.properties?.name || 'Unknown Property',
+      unitNumber: app.units?.unit_number || 'N/A',
+      propertyAddress: app.properties 
+        ? `${app.properties.address || ''}, ${app.properties.city || ''}`.trim()
+        : '',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      propertyImage: (app.properties as any)?.images?.[0],
+      rentAmount: app.units?.rent_amount,
+      depositAmount: app.units?.deposit,
+    };
+  };
+
   useEffect(() => {
     if (!user?.id) return;
 
@@ -68,28 +83,15 @@ export const ApplicationStatusCard = () => {
         // Fetch payment status for approved applications
         const appsWithPayments = await Promise.all(
           activeApps.map(async (app) => {
-            // Extract property details
-            const propertyName = app.properties?.name || 'Unknown Property';
-            const unitNumber = app.units?.unit_number || 'N/A';
-            const propertyAddress = app.properties 
-              ? `${app.properties.address || ''}, ${app.properties.city || ''}`.trim()
-              : '';
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const propertyImage = (app.properties as any)?.images?.[0];
-            const rentAmount = app.units?.rent_amount;
-            const depositAmount = app.units?.deposit;
+            // Extract property details using helper
+            const details = extractPropertyDetails(app);
             
             if (app.status === 'approved') {
               try {
                 const payment = await fetchApplicationPayment(app.id);
                 return {
                   ...app,
-                  propertyName,
-                  unitNumber,
-                  propertyAddress,
-                  propertyImage,
-                  rentAmount,
-                  depositAmount,
+                  ...details,
                   payment: payment ? {
                     id: payment.id,
                     amount: payment.amount,
@@ -101,23 +103,13 @@ export const ApplicationStatusCard = () => {
                 console.error('Error fetching payment for application:', app.id, err);
                 return {
                   ...app,
-                  propertyName,
-                  unitNumber,
-                  propertyAddress,
-                  propertyImage,
-                  rentAmount,
-                  depositAmount,
+                  ...details,
                 };
               }
             }
             return {
               ...app,
-              propertyName,
-              unitNumber,
-              propertyAddress,
-              propertyImage,
-              rentAmount,
-              depositAmount,
+              ...details,
             };
           })
         );
@@ -148,28 +140,15 @@ export const ApplicationStatusCard = () => {
         // Fetch payment info for approved applications
         Promise.all(
           activeApps.map(async (app) => {
-            // Extract property details
-            const propertyName = app.properties?.name || 'Unknown Property';
-            const unitNumber = app.units?.unit_number || 'N/A';
-            const propertyAddress = app.properties 
-              ? `${app.properties.address || ''}, ${app.properties.city || ''}`.trim()
-              : '';
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const propertyImage = (app.properties as any)?.images?.[0];
-            const rentAmount = app.units?.rent_amount;
-            const depositAmount = app.units?.deposit;
+            // Extract property details using helper
+            const details = extractPropertyDetails(app);
             
             if (app.status === 'approved') {
               try {
                 const payment = await fetchApplicationPayment(app.id);
                 return {
                   ...app,
-                  propertyName,
-                  unitNumber,
-                  propertyAddress,
-                  propertyImage,
-                  rentAmount,
-                  depositAmount,
+                  ...details,
                   payment: payment ? {
                     id: payment.id,
                     amount: payment.amount,
@@ -181,23 +160,13 @@ export const ApplicationStatusCard = () => {
                 console.error('Error fetching payment for application:', app.id, err);
                 return {
                   ...app,
-                  propertyName,
-                  unitNumber,
-                  propertyAddress,
-                  propertyImage,
-                  rentAmount,
-                  depositAmount,
+                  ...details,
                 };
               }
             }
             return {
               ...app,
-              propertyName,
-              unitNumber,
-              propertyAddress,
-              propertyImage,
-              rentAmount,
-              depositAmount,
+              ...details,
             };
           })
         ).then(appsWithPayments => {
@@ -270,7 +239,7 @@ export const ApplicationStatusCard = () => {
       
       if (app.payment.status === 'pending') {
         const depositText = app.depositAmount ? ` + ₦${app.depositAmount.toLocaleString()} deposit` : '';
-        const rentText = app.rentAmount ? `₦${app.rentAmount.toLocaleString()}` : '$' + app.payment.amount.toLocaleString();
+        const rentText = app.rentAmount ? `₦${app.rentAmount.toLocaleString()}` : `₦${app.payment.amount.toLocaleString()}`;
         return `Your application has been approved! Please complete your payment of ${rentText}${depositText} to proceed with your tenancy.`;
       }
       
