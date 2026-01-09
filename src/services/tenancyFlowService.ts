@@ -225,9 +225,6 @@ export async function generateAgreementAfterPayment(data: {
     throw error;
   }
 }
-    'Use pollPaymentStatus() to check payment status.'
-  );
-}
 
 /**
  * Generate tenancy agreement after successful payment
