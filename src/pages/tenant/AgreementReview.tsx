@@ -116,7 +116,7 @@ const AgreementReview = () => {
   // Loading state
   if (loading) {
     return (
-      <DashboardLayout title="Review Agreement" navigationLinks={tenantNavLinks}>
+      <DashboardLayout pageTitle="Review Agreement" navLinks={tenantNavLinks}>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center space-y-4">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
@@ -130,7 +130,7 @@ const AgreementReview = () => {
   // Error state
   if (error || !agreement) {
     return (
-      <DashboardLayout title="Review Agreement" navigationLinks={tenantNavLinks}>
+      <DashboardLayout pageTitle="Review Agreement" navLinks={tenantNavLinks}>
         <Card>
           <CardHeader>
             <CardTitle className="text-destructive flex items-center gap-2">
@@ -169,7 +169,7 @@ const AgreementReview = () => {
   );
 
   return (
-    <DashboardLayout title="Review Lease Agreement" navigationLinks={tenantNavLinks}>
+    <DashboardLayout pageTitle="Review Lease Agreement" navLinks={tenantNavLinks}>
       <div className="space-y-4 md:space-y-6 max-w-4xl mx-auto pb-6">
         {/* Back Button */}
         <Button 
