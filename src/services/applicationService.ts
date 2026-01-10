@@ -249,25 +249,55 @@ export async function fetchApplicationsByLandlord(landlordId: string): Promise<A
  */
 export async function fetchApplicationsByTenant(tenantId: string): Promise<ApplicationWithRelations[]> {
   try {
-    const { data, error } = await supabase
-      .from('property_applications')
-      .select(`
-        *,
-        units!inner(
-          unit_number, 
-          rent_amount, 
-          bedrooms, 
-          bathrooms, 
-          property_id,
-          properties!inner(name, address, city, landlord_id, images)
-        ),
-        tenancy_agreements!property_applications_id_fkey(
-          id,
-          agreement_status
-        )
-      `)
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false});
+    // First, try to fetch with tenancy_agreements join
+    let data, error;
+    
+    try {
+      const result = await supabase
+        .from('property_applications')
+        .select(`
+          *,
+          units!inner(
+            unit_number, 
+            rent_amount, 
+            bedrooms, 
+            bathrooms, 
+            property_id,
+            properties!inner(name, address, city, landlord_id, images)
+          ),
+          tenancy_agreements!property_applications_id_fkey(
+            id,
+            agreement_status
+          )
+        `)
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false});
+      
+      data = result.data;
+      error = result.error;
+    } catch (joinError) {
+      // If the join fails (e.g., foreign key doesn't exist), fall back to simpler query
+      console.warn('Tenancy agreements join failed, fetching without it:', joinError);
+      
+      const result = await supabase
+        .from('property_applications')
+        .select(`
+          *,
+          units!inner(
+            unit_number, 
+            rent_amount, 
+            bedrooms, 
+            bathrooms, 
+            property_id,
+            properties!inner(name, address, city, landlord_id, images)
+          )
+        `)
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false});
+      
+      data = result.data;
+      error = result.error;
+    }
 
     if (error) {
       console.error('Error fetching tenant applications:', error);

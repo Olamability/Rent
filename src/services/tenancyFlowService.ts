@@ -415,7 +415,9 @@ export async function fetchApplicationPayment(applicationId: string): Promise<Ap
 
     if (error) {
       console.error('Error fetching application payment:', error);
-      throw error;
+      // Return null instead of throwing - payment may not exist yet or column may not be in schema
+      // This prevents the entire ApplicationStatusCard from failing
+      return null;
     }
 
     if (!data) {
@@ -439,7 +441,8 @@ export async function fetchApplicationPayment(applicationId: string): Promise<Ap
     };
   } catch (error) {
     console.error('Failed to fetch application payment:', error);
-    throw error;
+    // Return null instead of throwing to prevent cascading failures
+    return null;
   }
 }
 
