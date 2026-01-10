@@ -231,7 +231,7 @@ export interface TenancyAgreement {
   endDate: Date;
   rentAmount: number;
   depositAmount: number;
-  status: 'draft' | 'pending' | 'sent' | 'signed' | 'active' | 'expired' | 'terminated';
+  status: 'draft' | 'sent' | 'pending' | 'accepted' | 'signed' | 'active' | 'expired' | 'terminated' | 'renewed';
   documentUrl?: string;
   signedDate?: Date;
   tenantSignedAt?: Date;
@@ -297,12 +297,25 @@ export interface MaintenanceUpdate {
 }
 
 // Application types
+export type ApplicationStatus = 
+  | 'submitted'           // Initial submission
+  | 'pending'            // Under review (backwards compatibility)
+  | 'approved'           // Approved by landlord
+  | 'agreement_sent'     // Agreement generated and sent
+  | 'agreement_accepted' // Tenant accepted agreement
+  | 'payment_pending'    // Waiting for payment
+  | 'paid'              // Payment completed
+  | 'rejected'          // Rejected
+  | 'withdrawn'         // Withdrawn by tenant
+  | 'cancelled'         // Cancelled
+  | 'expired';          // Expired
+
 export interface PropertyApplication {
   id: string;
   tenantId: string;
   propertyId: string;
   unitId: string;
-  status: 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'cancelled';
+  status: ApplicationStatus;
   submittedAt: Date;
   reviewedAt?: Date;
   moveInDate?: Date;
