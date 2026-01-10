@@ -81,6 +81,46 @@ export async function fetchActiveTenancyAgreement(tenantId: string): Promise<Ten
 }
 
 /**
+ * Fetch pending agreement for tenant review (draft or sent status)
+ * This retrieves agreements that need tenant action (review and acceptance)
+ */
+export async function fetchPendingAgreementForTenant(tenantId: string): Promise<TenancyAgreement | null> {
+  try {
+    const { data, error } = await supabase
+      .from('tenancy_agreements')
+      .select(`
+        *,
+        unit:units(
+          unit_number,
+          property_id,
+          property:properties(name, address, city, state, images)
+        ),
+        landlord:users!tenancy_agreements_landlord_id_fkey(name, email, phone),
+        tenant:users!tenancy_agreements_tenant_id_fkey(name, email, phone)
+      `)
+      .eq('tenant_id', tenantId)
+      .in('agreement_status', ['draft', 'sent'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching pending agreement:', error);
+      throw error;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return transformAgreementData(data);
+  } catch (error) {
+    console.error('Failed to fetch pending agreement:', error);
+    throw error;
+  }
+}
+
+/**
  * Fetch all tenancy agreements for a tenant (including past agreements)
  */
 export async function fetchTenantAgreements(tenantId: string): Promise<TenancyAgreement[]> {

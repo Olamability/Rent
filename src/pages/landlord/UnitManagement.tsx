@@ -211,50 +211,47 @@ const UnitManagement = () => {
         let tenantName: string | null = null;
         let displayStatus: string;
         
-        // Determine unit status based on listing_status
-        if (p.listingStatus === 'available' || p.listingStatus === 'unlisted') {
-          displayStatus = 'vacant';
-        } else if (p.listingStatus === 'applied') {
-          // Application approved but payment not yet completed
-          displayStatus = 'reserved';
-        } else if (p.listingStatus === 'rented') {
-          // Payment completed, tenant has moved in or will move in
-          displayStatus = 'occupied';
-        } else {
-          displayStatus = 'vacant'; // Default fallback
-        }
-        
-        // Find current tenant for non-vacant units
-        if (p.listingStatus !== 'available' && p.listingStatus !== 'unlisted' && p.unitId) {
-          // For rented units, fetch active agreement
-          if (p.listingStatus === 'rented') {
-            const { data: agreement } = await supabase
-              .from('tenancy_agreements')
-              .select('tenant_id')
-              .eq('unit_id', p.unitId)
-              .eq('agreement_status', 'active')
-              .maybeSingle();
-            if (agreement?.tenant_id) {
-              const { data: tenantUser } = await supabase
-                .from('users')
-                .select('name')
-                .eq('id', agreement.tenant_id)
-                .maybeSingle();
-              tenantName = tenantUser?.name || null;
-            }
-          } 
-          // For reserved units (approved application), fetch applicant name
-          else if (p.listingStatus === 'applied') {
-            const { data: application } = await supabase
-              .from('property_applications')
-              .select('tenant_id, users!property_applications_tenant_id_fkey(name)')
-              .eq('unit_id', p.unitId)
-              .eq('application_status', 'approved')
-              .maybeSingle();
-            if (application?.users?.name) {
+        // Check if unit has an approved application (approved, agreement_sent, agreement_accepted, payment_pending)
+        let hasApprovedApplication = false;
+        if (p.unitId && p.listingStatus === 'available') {
+          const { data: application } = await supabase
+            .from('property_applications')
+            .select('tenant_id, application_status, users!property_applications_tenant_id_fkey(name)')
+            .eq('unit_id', p.unitId)
+            .in('application_status', ['approved', 'agreement_sent', 'agreement_accepted', 'payment_pending'])
+            .maybeSingle();
+          
+          if (application) {
+            hasApprovedApplication = true;
+            if (application.users?.name) {
               tenantName = `${application.users.name} (Pending)`;
             }
           }
+        }
+        
+        // Determine unit status based on listing_status and application status
+        if (p.listingStatus === 'rented') {
+          // Payment completed, tenant has moved in or will move in
+          displayStatus = 'occupied';
+          
+          // For rented units, fetch active agreement tenant name
+          if (p.unitId) {
+            const { data: agreement } = await supabase
+              .from('tenancy_agreements')
+              .select('tenant_id, users!tenancy_agreements_tenant_id_fkey(name)')
+              .eq('unit_id', p.unitId)
+              .eq('agreement_status', 'active')
+              .maybeSingle();
+            if (agreement?.users?.name) {
+              tenantName = agreement.users.name;
+            }
+          }
+        } else if (hasApprovedApplication) {
+          // Application approved but payment not yet completed (awaiting agreement/payment)
+          displayStatus = 'reserved';
+        } else {
+          // Available or unlisted with no approved applications
+          displayStatus = 'vacant';
         }
         
         return {

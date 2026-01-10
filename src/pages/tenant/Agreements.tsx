@@ -11,7 +11,7 @@ import { DocumentViewerDialog } from "@/components/tenant/DocumentViewerDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { tenantNavLinks } from "@/config/navigation";
 import { formatCurrency } from "@/lib/utils";
-import { fetchActiveTenancyAgreement, type TenancyAgreement } from "@/services/agreementService";
+import { fetchActiveTenancyAgreement, fetchPendingAgreementForTenant, type TenancyAgreement } from "@/services/agreementService";
 import { 
   signAgreementSecure, 
   getAgreementSigningStatus 
@@ -46,7 +46,16 @@ const Agreements = () => {
       try {
         setError(null);
         setLoading(true);
-        const data = await fetchActiveTenancyAgreement(user.id);
+        
+        // First try to fetch pending agreement (draft/sent status)
+        // This is for agreements that need tenant review and acceptance
+        let data = await fetchPendingAgreementForTenant(user.id);
+        
+        // If no pending agreement, try to fetch active agreement
+        if (!data) {
+          data = await fetchActiveTenancyAgreement(user.id);
+        }
+        
         if (isMounted) {
           setAgreement(data);
           
