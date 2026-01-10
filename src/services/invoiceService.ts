@@ -194,6 +194,7 @@ export async function fetchInvoiceByApplicationId(applicationId: string): Promis
 
 /**
  * Create an invoice for an approved application
+ * NOTE: Invoice is created in 'draft' status and becomes 'issued' after tenant accepts agreement
  */
 export async function createApplicationInvoice(data: {
   applicationId: string;
@@ -227,20 +228,24 @@ export async function createApplicationInvoice(data: {
       throw error;
     }
 
+    // Update invoice to 'draft' status (hidden from tenant until agreement accepted)
+    const { error: updateError } = await supabase
+      .from('invoices')
+      .update({ invoice_status: 'draft' })
+      .eq('id', result);
+
+    if (updateError) {
+      console.error('Error setting invoice to draft:', updateError);
+    }
+
     // Fetch the created invoice
     const invoice = await fetchInvoiceById(result);
     if (!invoice) {
       throw new Error('Failed to fetch created invoice');
     }
 
-    // Send notification to tenant
-    await createNotification({
-      userId: data.tenantId,
-      title: 'Invoice Generated',
-      message: `Your invoice for ${invoice.unit?.property?.name || 'your rental'} has been generated. Amount: $${invoice.totalAmount.toFixed(2)}. Due: ${new Date(invoice.dueDate).toLocaleDateString()}`,
-      type: 'info',
-      actionUrl: '/tenant/rent',
-    });
+    // Note: Don't send notification yet - invoice is in draft
+    // Notification will be sent when tenant accepts agreement and invoice becomes 'issued'
 
     return invoice;
   } catch (error) {
@@ -315,6 +320,62 @@ export async function createMonthlyRentInvoice(data: {
     return mappedInvoice;
   } catch (error) {
     console.error('Failed to create monthly rent invoice:', error);
+    throw error;
+  }
+}
+
+/**
+ * Issue/unlock invoice after agreement acceptance
+ * Changes invoice status from 'draft' to 'issued' making it visible to tenant
+ */
+export async function issueInvoiceAfterAgreementAcceptance(data: {
+  applicationId: string;
+  tenantId: string;
+}): Promise<Invoice | null> {
+  try {
+    // Find invoice by application ID
+    const invoice = await fetchInvoiceByApplicationId(data.applicationId);
+    
+    if (!invoice) {
+      console.warn('No invoice found for application:', data.applicationId);
+      return null;
+    }
+
+    // Only update if invoice is in draft status
+    if (invoice.invoiceStatus === 'draft' || invoice.invoiceStatus === 'pending') {
+      const { error } = await supabase
+        .from('invoices')
+        .update({ 
+          invoice_status: 'issued',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', invoice.id);
+
+      if (error) {
+        console.error('Error issuing invoice:', error);
+        throw error;
+      }
+
+      // Fetch updated invoice
+      const updatedInvoice = await fetchInvoiceById(invoice.id);
+      
+      if (updatedInvoice) {
+        // Send notification to tenant that invoice is ready
+        await createNotification({
+          userId: data.tenantId,
+          title: 'Invoice Ready for Payment',
+          message: `Your invoice for ${updatedInvoice.unit?.property?.name || 'your rental'} is now ready. Amount: $${updatedInvoice.totalAmount.toFixed(2)}. Due: ${new Date(updatedInvoice.dueDate).toLocaleDateString()}`,
+          type: 'info',
+          actionUrl: '/tenant/rent',
+        });
+      }
+
+      return updatedInvoice;
+    }
+
+    return invoice;
+  } catch (error) {
+    console.error('Failed to issue invoice after agreement acceptance:', error);
     throw error;
   }
 }

@@ -259,11 +259,15 @@ export async function fetchApplicationsByTenant(tenantId: string): Promise<Appli
           bedrooms, 
           bathrooms, 
           property_id,
-          properties!inner(name, address, city, landlord_id)
+          properties!inner(name, address, city, landlord_id, images)
+        ),
+        tenancy_agreements!property_applications_id_fkey(
+          id,
+          agreement_status
         )
       `)
       .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false});
 
     if (error) {
       console.error('Error fetching tenant applications:', error);
@@ -279,6 +283,13 @@ export async function fetchApplicationsByTenant(tenantId: string): Promise<Appli
       // Add related data for component access
       result.properties = app.units?.properties;
       result.units = app.units;
+      // Add agreement data if it exists
+      if (app.tenancy_agreements && app.tenancy_agreements.length > 0) {
+        result.agreement = {
+          id: app.tenancy_agreements[0].id,
+          status: app.tenancy_agreements[0].agreement_status,
+        };
+      }
       return result;
     });
   } catch (error) {
@@ -333,25 +344,43 @@ export async function updateApplicationStatus(
       throw updateError;
     }
 
-    // Create invoice for approved application (unit status remains 'available' until payment)
+    // NEW WORKFLOW: Generate lease agreement (not invoice) for approved application
     if (status === 'approved') {
-      // Note: Unit listing_status should remain 'available' until payment is completed
-      // The payment webhook will update it to 'rented' after successful payment
+      // Note: Unit listing_status remains 'available' until payment is completed
+      // New flow: approval → agreement generation → tenant acceptance → invoice → payment → rented
       
-      // Create invoice for approved application
-      const { createApplicationInvoice } = await import('./invoiceService');
       try {
-        await createApplicationInvoice({
-          applicationId,
-          tenantId: application.tenant_id,
-          landlordId: application.units?.properties?.landlord_id || application.landlord_id,
-          unitId: application.unit_id,
-          rentAmount: application.units.rent_amount,
-          depositAmount: application.units.deposit,
-        });
-      } catch (invoiceError) {
-        console.error('Failed to create invoice for application:', invoiceError);
-        // Don't fail the approval, just log the error
+        // Generate lease agreement using database function
+        const { data: agreementId, error: agreementError } = await supabase
+          .rpc('generate_agreement_from_application', {
+            p_application_id: applicationId
+          });
+
+        if (agreementError) {
+          console.error('Failed to generate agreement:', agreementError);
+          throw agreementError;
+        }
+
+        console.log('Lease agreement generated:', agreementId);
+        
+        // Also create invoice in 'draft' status (not visible to tenant yet)
+        const { createApplicationInvoice } = await import('./invoiceService');
+        try {
+          await createApplicationInvoice({
+            applicationId,
+            tenantId: application.tenant_id,
+            landlordId: application.units?.properties?.landlord_id || application.landlord_id,
+            unitId: application.unit_id,
+            rentAmount: application.units.rent_amount,
+            depositAmount: application.units.deposit,
+          });
+        } catch (invoiceError) {
+          console.error('Failed to create draft invoice:', invoiceError);
+          // Don't fail the approval, invoice can be created later
+        }
+      } catch (agreementError) {
+        console.error('Failed to generate agreement for application:', agreementError);
+        // Don't fail the approval completely, but log the error
       }
     }
 
@@ -361,7 +390,7 @@ export async function updateApplicationStatus(
       : 'Application Status Update';
     
     const notificationMessage = status === 'approved'
-      ? `Your application for ${application.units?.properties?.name || 'the property'} - Unit ${application.units.unit_number} has been approved! Please proceed with payment to secure your tenancy.`
+      ? `Your application for ${application.units?.properties?.name || 'the property'} - Unit ${application.units.unit_number} has been approved! Please review and accept your lease agreement to proceed.`
       : `Your application for ${application.units?.properties?.name || 'the property'} - Unit ${application.units.unit_number} has been reviewed.`;
 
     await createNotification({
@@ -369,7 +398,7 @@ export async function updateApplicationStatus(
       title: notificationTitle,
       message: notificationMessage,
       type: status === 'approved' ? 'success' : 'info',
-      actionUrl: status === 'approved' ? '/tenant/rent' : '/tenant/dashboard',
+      actionUrl: status === 'approved' ? '/tenant/agreements' : '/tenant/dashboard',
     });
   } catch (error) {
     console.error('Failed to update application status:', error);

@@ -515,3 +515,142 @@ function transformAgreementData(data: TenancyAgreementRow): TenancyAgreement {
     } : undefined,
   };
 }
+
+/**
+ * Fetch agreement by application ID
+ */
+export async function fetchAgreementByApplicationId(applicationId: string): Promise<TenancyAgreement | null> {
+  try {
+    const { data, error } = await supabase
+      .from('tenancy_agreements')
+      .select(`
+        *,
+        unit:units(
+          unit_number,
+          property_id,
+          property:properties(name, address, city, state, images)
+        ),
+        landlord:users!tenancy_agreements_landlord_id_fkey(name, email, phone),
+        tenant:users!tenancy_agreements_tenant_id_fkey(name, email, phone)
+      `)
+      .eq('application_id', applicationId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching agreement by application:', error);
+      throw error;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return transformAgreementData(data);
+  } catch (error) {
+    console.error('Failed to fetch agreement by application:', error);
+    return null;
+  }
+}
+
+/**
+ * Accept/sign agreement as tenant
+ * This triggers the workflow: agreement accepted → invoice issued → payment can proceed
+ */
+export async function acceptAgreementAsTenant(
+  agreementId: string,
+  tenantId: string
+): Promise<TenancyAgreement> {
+  try {
+    // Call database function to handle acceptance
+    const { error } = await supabase.rpc('accept_agreement_by_tenant', {
+      p_agreement_id: agreementId,
+      p_tenant_id: tenantId,
+    });
+
+    if (error) {
+      console.error('Error accepting agreement:', error);
+      throw error;
+    }
+
+    // Fetch updated agreement
+    const { data: agreement, error: fetchError } = await supabase
+      .from('tenancy_agreements')
+      .select(`
+        *,
+        unit:units(
+          unit_number,
+          property_id,
+          property:properties(name, address, city, state, images)
+        ),
+        landlord:users!tenancy_agreements_landlord_id_fkey(name, email, phone),
+        tenant:users!tenancy_agreements_tenant_id_fkey(name, email, phone)
+      `)
+      .eq('id', agreementId)
+      .single();
+
+    if (fetchError || !agreement) {
+      throw new Error('Failed to fetch updated agreement');
+    }
+
+    // Issue invoice (make it visible to tenant)
+    if (agreement.application_id) {
+      const { issueInvoiceAfterAgreementAcceptance } = await import('./invoiceService');
+      try {
+        await issueInvoiceAfterAgreementAcceptance({
+          applicationId: agreement.application_id,
+          tenantId,
+        });
+      } catch (invoiceError) {
+        console.error('Failed to issue invoice:', invoiceError);
+        // Don't fail the acceptance, invoice can be issued later
+      }
+    }
+
+    return transformAgreementData(agreement);
+  } catch (error) {
+    console.error('Failed to accept agreement:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get agreement status and details for review
+ */
+export async function getAgreementForReview(agreementId: string, tenantId: string): Promise<TenancyAgreement | null> {
+  try {
+    const { data, error } = await supabase
+      .from('tenancy_agreements')
+      .select(`
+        *,
+        unit:units(
+          unit_number,
+          rent_amount,
+          deposit,
+          bedrooms,
+          bathrooms,
+          square_feet,
+          property_id,
+          property:properties(name, address, city, state, zip_code, images)
+        ),
+        landlord:users!tenancy_agreements_landlord_id_fkey(name, email, phone),
+        tenant:users!tenancy_agreements_tenant_id_fkey(name, email, phone)
+      `)
+      .eq('id', agreementId)
+      .eq('tenant_id', tenantId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching agreement for review:', error);
+      throw error;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return transformAgreementData(data);
+  } catch (error) {
+    console.error('Failed to fetch agreement for review:', error);
+    return null;
+  }
+}
