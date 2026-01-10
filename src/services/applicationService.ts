@@ -487,17 +487,10 @@ export async function withdrawApplication(
   reason?: string
 ): Promise<void> {
   try {
-    // Get application details first to get related info for notifications
+    // Get application details first - without RLS-restricted joins
     const { data: application, error: fetchError } = await supabase
       .from('property_applications')
-      .select(`
-        *,
-        units!inner(
-          unit_number, 
-          property_id,
-          properties!inner(name, landlord_id)
-        )
-      `)
+      .select('*')
       .eq('id', applicationId)
       .single();
 
@@ -510,7 +503,7 @@ export async function withdrawApplication(
       throw new Error('Application cannot be withdrawn. Only pending or approved applications can be withdrawn.');
     }
 
-    // Update the application status to withdrawn - only use fields that exist
+    // Update the application status to withdrawn
     const { error: updateError } = await supabase
       .from('property_applications')
       .update({
@@ -523,9 +516,12 @@ export async function withdrawApplication(
       throw updateError;
     }
 
-    // No need to update unit status as it remains 'available' until payment
-    // (Previously, we changed it to 'applied' on approval, but that's no longer the case)
-    // Unit will only change to 'rented' after successful payment via webhook
+    // Get unit and property details for notifications (using left join to avoid RLS issues)
+    const { data: unitData } = await supabase
+      .from('units')
+      .select('unit_number, property_id, properties(name)')
+      .eq('id', application.unit_id)
+      .single();
 
     // Get tenant name for notification
     const { data: tenant } = await supabase
@@ -535,12 +531,14 @@ export async function withdrawApplication(
       .single();
 
     const tenantName = tenant?.name || 'A tenant';
+    const unitNumber = unitData?.unit_number || 'Unknown Unit';
+    const propertyName = unitData?.properties?.name || 'a property';
 
-    // Notify landlord
+    // Notify landlord (use landlord_id from application table)
     await createNotification({
-      userId: application.units?.properties?.landlord_id || application.landlord_id,
+      userId: application.landlord_id,
       title: 'Application Withdrawn',
-      message: `${tenantName} has withdrawn their application for ${application.units?.properties?.name || 'a property'} - Unit ${application.units.unit_number}.${reason ? ` Reason: ${reason}` : ''}`,
+      message: `${tenantName} has withdrawn their application for ${propertyName} - Unit ${unitNumber}.${reason ? ` Reason: ${reason}` : ''}`,
       type: 'info',
       actionUrl: '/landlord/units',
     });
@@ -549,7 +547,7 @@ export async function withdrawApplication(
     await createNotification({
       userId: application.tenant_id,
       title: 'Application Withdrawn',
-      message: `You have successfully withdrawn your application for ${application.units?.properties?.name || 'the property'} - Unit ${application.units.unit_number}.`,
+      message: `You have successfully withdrawn your application for ${propertyName} - Unit ${unitNumber}.`,
       type: 'success',
       actionUrl: '/tenant/dashboard',
     });
