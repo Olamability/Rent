@@ -30,7 +30,7 @@ interface ApplicationWithPayment {
   propertyImage?: string;
   rentAmount?: number;
   depositAmount?: number;
-  status: 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'cancelled';
+  status: 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'cancelled' | 'agreement_sent' | 'agreement_accepted' | 'payment_pending' | 'paid';
   moveInDate?: Date;
   submittedAt: Date;
   payment?: {
@@ -76,10 +76,10 @@ export const ApplicationStatusCard = () => {
         setLoading(true);
         const apps = await fetchApplicationsByTenant(user.id);
         
-        // Get only applications that need action (pending or approved)
+        // Get only applications that need action (pending, approved, or awaiting agreement/payment)
         // Show rejected and withdrawn in "My Applications" section on dashboard instead
         const activeApps = apps.filter(app => 
-          app.status === 'pending' || app.status === 'approved'
+          ['pending', 'approved', 'agreement_sent', 'agreement_accepted', 'payment_pending'].includes(app.status)
         );
 
         // Fetch payment status for approved applications
@@ -217,6 +217,28 @@ export const ApplicationStatusCard = () => {
             Approved
           </Badge>
         );
+      case 'agreement_sent':
+        return (
+          <Badge variant="default" className="bg-blue-500 flex items-center gap-1">
+            <FileText className="w-3 h-3" />
+            Agreement Ready
+          </Badge>
+        );
+      case 'agreement_accepted':
+      case 'payment_pending':
+        return (
+          <Badge variant="default" className="bg-purple-500 flex items-center gap-1">
+            <CreditCard className="w-3 h-3" />
+            Payment Pending
+          </Badge>
+        );
+      case 'paid':
+        return (
+          <Badge variant="default" className="bg-green-600 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" />
+            Paid
+          </Badge>
+        );
       case 'rejected':
         return (
           <Badge variant="destructive" className="flex items-center gap-1">
@@ -235,10 +257,25 @@ export const ApplicationStatusCard = () => {
     }
     
     if (app.status === 'approved') {
-      if (!app.payment) {
-        return 'Payment details are being prepared. Please check back shortly.';
-      }
-      
+      return 'Your application has been approved! Your lease agreement is being prepared.';
+    }
+    
+    if (app.status === 'agreement_sent') {
+      return 'Your lease agreement is ready for review. Please review and accept the terms to continue.';
+    }
+    
+    if (app.status === 'agreement_accepted' || app.status === 'payment_pending') {
+      const depositText = app.depositAmount ? ` + ₦${app.depositAmount.toLocaleString()} deposit` : '';
+      const rentText = app.rentAmount ? `₦${app.rentAmount.toLocaleString()}` : '';
+      return `Your agreement has been accepted! Please complete your payment of ${rentText}${depositText} to finalize your tenancy.`;
+    }
+    
+    if (app.status === 'paid') {
+      return 'Payment completed! Your tenancy is being finalized.';
+    }
+    
+    // Legacy logic for backwards compatibility
+    if (app.payment) {
       if (app.payment.status === 'pending') {
         const depositText = app.depositAmount ? ` + ₦${app.depositAmount.toLocaleString()} deposit` : '';
         const rentText = app.rentAmount ? `₦${app.rentAmount.toLocaleString()}` : `₦${app.payment.amount.toLocaleString()}`;
@@ -254,10 +291,36 @@ export const ApplicationStatusCard = () => {
   };
 
   const getNextStepAction = (app: ApplicationWithPayment) => {
-    if (app.status === 'approved' && app.payment?.status === 'pending') {
+    // Agreement awaiting review
+    if (app.status === 'agreement_sent' && app.agreement?.id) {
       return (
-        <div className="flex gap-2 mt-3">
-          <Button asChild variant="default">
+        <div className="flex flex-col sm:flex-row gap-2 mt-3">
+          <Button asChild variant="default" className="flex-1 sm:flex-initial">
+            <Link to={`/tenant/agreements/review/${app.agreement.id}`}>
+              <FileText className="w-4 h-4 mr-2" />
+              Review Agreement
+            </Link>
+          </Button>
+          <Button 
+            variant="outline"
+            className="text-destructive hover:bg-destructive/10"
+            onClick={() => {
+              setSelectedApplication(app);
+              setIsWithdrawDialogOpen(true);
+            }}
+          >
+            <XCircle className="w-4 h-4 mr-2" />
+            Withdraw
+          </Button>
+        </div>
+      );
+    }
+    
+    // Agreement accepted, payment pending
+    if ((app.status === 'agreement_accepted' || app.status === 'payment_pending') && app.payment?.status !== 'paid') {
+      return (
+        <div className="flex flex-col sm:flex-row gap-2 mt-3">
+          <Button asChild variant="default" className="flex-1 sm:flex-initial">
             <Link to="/tenant/rent">
               <CreditCard className="w-4 h-4 mr-2" />
               Make Payment
@@ -278,9 +341,34 @@ export const ApplicationStatusCard = () => {
       );
     }
     
-    if (app.status === 'approved' && app.payment?.status === 'paid') {
+    // Legacy: Approved with payment pending (backwards compatibility)
+    if (app.status === 'approved' && app.payment?.status === 'pending') {
       return (
-        <Button asChild variant="outline" className="mt-3">
+        <div className="flex flex-col sm:flex-row gap-2 mt-3">
+          <Button asChild variant="default" className="flex-1 sm:flex-initial">
+            <Link to="/tenant/rent">
+              <CreditCard className="w-4 h-4 mr-2" />
+              Make Payment
+            </Link>
+          </Button>
+          <Button 
+            variant="outline"
+            className="text-destructive hover:bg-destructive/10"
+            onClick={() => {
+              setSelectedApplication(app);
+              setIsWithdrawDialogOpen(true);
+            }}
+          >
+            <XCircle className="w-4 h-4 mr-2" />
+            Withdraw
+          </Button>
+        </div>
+      );
+    }
+    
+    if ((app.status === 'approved' || app.status === 'paid') && app.payment?.status === 'paid') {
+      return (
+        <Button asChild variant="outline" className="mt-3 w-full sm:w-auto">
           <Link to="/tenant/agreements">
             <FileText className="w-4 h-4 mr-2" />
             View Agreement
@@ -289,11 +377,11 @@ export const ApplicationStatusCard = () => {
       );
     }
     
-    if (app.status === 'pending') {
+    if (app.status === 'pending' || app.status === 'approved') {
       return (
         <Button 
           variant="outline"
-          className="text-destructive hover:bg-destructive/10 mt-3"
+          className="text-destructive hover:bg-destructive/10 mt-3 w-full sm:w-auto"
           onClick={() => {
             setSelectedApplication(app);
             setIsWithdrawDialogOpen(true);

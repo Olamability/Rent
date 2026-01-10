@@ -259,11 +259,15 @@ export async function fetchApplicationsByTenant(tenantId: string): Promise<Appli
           bedrooms, 
           bathrooms, 
           property_id,
-          properties!inner(name, address, city, landlord_id)
+          properties!inner(name, address, city, landlord_id, images)
+        ),
+        tenancy_agreements!property_applications_id_fkey(
+          id,
+          agreement_status
         )
       `)
       .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false});
 
     if (error) {
       console.error('Error fetching tenant applications:', error);
@@ -279,6 +283,13 @@ export async function fetchApplicationsByTenant(tenantId: string): Promise<Appli
       // Add related data for component access
       result.properties = app.units?.properties;
       result.units = app.units;
+      // Add agreement data if it exists
+      if (app.tenancy_agreements && app.tenancy_agreements.length > 0) {
+        result.agreement = {
+          id: app.tenancy_agreements[0].id,
+          status: app.tenancy_agreements[0].agreement_status,
+        };
+      }
       return result;
     });
   } catch (error) {

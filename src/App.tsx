@@ -41,6 +41,7 @@ const TenantPropertyDetails = lazy(() => import("./pages/tenant/PropertyDetails"
 const RentPayment = lazy(() => import("./pages/tenant/RentPayment"));
 const TenantMaintenance = lazy(() => import("./pages/tenant/Maintenance"));
 const TenantAgreements = lazy(() => import("./pages/tenant/Agreements"));
+const AgreementReview = lazy(() => import("./pages/tenant/AgreementReview"));
 const TenantProfile = lazy(() => import("./pages/tenant/Profile"));
 
 // Admin Pages
@@ -151,6 +152,7 @@ const App = () => {
           <Route path="/tenant/rent" element={<ProtectedRoute allowedRoles={['tenant']}><RentPayment /></ProtectedRoute>} />
           <Route path="/tenant/maintenance" element={<ProtectedRoute allowedRoles={['tenant']}><TenantMaintenance /></ProtectedRoute>} />
           <Route path="/tenant/agreements" element={<ProtectedRoute allowedRoles={['tenant']}><TenantAgreements /></ProtectedRoute>} />
+          <Route path="/tenant/agreements/review/:agreementId" element={<ProtectedRoute allowedRoles={['tenant']}><AgreementReview /></ProtectedRoute>} />
           <Route path="/tenant/profile" element={<ProtectedRoute allowedRoles={['tenant']}><TenantProfile /></ProtectedRoute>} />
           
           {/* Admin Routes - Protected */}
