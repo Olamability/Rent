@@ -333,13 +333,11 @@ export async function updateApplicationStatus(
       throw updateError;
     }
 
-    // Update unit listing status if approved
+    // Create invoice for approved application (unit status remains 'available' until payment)
     if (status === 'approved') {
-      await supabase
-        .from('units')
-        .update({ listing_status: 'applied' })
-        .eq('id', application.unit_id);
-
+      // Note: Unit listing_status should remain 'available' until payment is completed
+      // The payment webhook will update it to 'rented' after successful payment
+      
       // Create invoice for approved application
       const { createApplicationInvoice } = await import('./invoiceService');
       try {
@@ -466,19 +464,9 @@ export async function withdrawApplication(
       throw updateError;
     }
 
-    // Update unit back to available if it was marked as applied
-    if (application.application_status === 'approved') {
-      const { error: unitUpdateError } = await supabase
-        .from('units')
-        .update({ listing_status: 'available' })
-        .eq('id', application.unit_id);
-
-      if (unitUpdateError) {
-        console.error('Error updating unit status:', unitUpdateError);
-        // Don't fail the entire withdrawal, but log the issue
-        // The unit status can be manually corrected by the landlord
-      }
-    }
+    // No need to update unit status as it remains 'available' until payment
+    // (Previously, we changed it to 'applied' on approval, but that's no longer the case)
+    // Unit will only change to 'rented' after successful payment via webhook
 
     // Get tenant name for notification
     const { data: tenant } = await supabase
