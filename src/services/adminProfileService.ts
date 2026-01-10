@@ -6,6 +6,13 @@ import { supabase } from '@/lib/supabase';
 import type { AdminProfile, User } from '@/types';
 import { calculateAdminProfileCompleteness } from '@/lib/profileUtils';
 
+// Result type for upsert operation
+export interface AdminProfileUpsertResult {
+  profile: AdminProfile;
+  profileComplete: boolean;
+  profileCompleteness: number;
+}
+
 // Database column name mapping for admin_profiles table
 interface DatabaseAdminProfile {
   id: string;
@@ -132,7 +139,7 @@ export async function updateAdminProfile(
 export async function upsertAdminProfile(
   userId: string,
   profile: Partial<AdminProfile>
-): Promise<{ profile: AdminProfile; profileComplete: boolean; profileCompleteness: number }> {
+): Promise<AdminProfileUpsertResult> {
   // First update the admin_profiles table
   const updatedProfile = await updateAdminProfile(userId, profile);
   
@@ -141,7 +148,7 @@ export async function upsertAdminProfile(
     // Fetch user data to calculate completeness
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('name, email, phone, role')
+      .select('name, email, phone, role, created_at, email_verified')
       .eq('id', userId)
       .single();
     
@@ -162,8 +169,8 @@ export async function upsertAdminProfile(
       name: userData.name || '',
       phone: userData.phone,
       role: userData.role,
-      createdAt: new Date(),
-      isVerified: true,
+      createdAt: userData.created_at ? new Date(userData.created_at) : new Date(),
+      isVerified: userData.email_verified || false,
       profile: updatedProfile,
     };
     

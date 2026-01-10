@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { fetchAdminProfile, upsertAdminProfile } from "@/services/adminProfileService";
 import { useAdminNavigation } from "@/hooks/useAdminNavigation";
-import { calculateProfileCompleteness } from "@/lib/profileUtils";
+import { calculateAdminProfileCompleteness } from "@/lib/profileUtils";
 
 
 const AdminProfile = () => {
@@ -132,7 +132,7 @@ const AdminProfile = () => {
   };
 
   // Calculate profile completeness
-  const profileCompleteness = user ? calculateProfileCompleteness(user) : 0;
+  const profileCompleteness = user ? calculateAdminProfileCompleteness(user) : 0;
   const isProfileComplete = profileCompleteness === 100;
 
   return (
