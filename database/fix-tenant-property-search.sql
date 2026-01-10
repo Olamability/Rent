@@ -84,32 +84,26 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- STEP 3: Verify the policies were created
+-- STEP 3: Verify the policies were created (optional - for review only)
 -- ============================================================================
 
--- Display current policies on properties table
-RAISE NOTICE '============================================';
-RAISE NOTICE 'Current RLS Policies on properties table:';
-RAISE NOTICE '============================================';
-SELECT 
-    policyname,
-    cmd,
-    qual
-FROM pg_policies 
-WHERE tablename = 'properties'
-ORDER BY policyname;
-
-RAISE NOTICE '';
-RAISE NOTICE '============================================';
-RAISE NOTICE 'Current RLS Policies on units table:';
-RAISE NOTICE '============================================';
-SELECT 
-    policyname,
-    cmd,
-    qual
-FROM pg_policies 
-WHERE tablename = 'units'
-ORDER BY policyname;
+-- Note: You can uncomment and run these separately after the migration to verify
+-- 
+-- SELECT 
+--     policyname,
+--     cmd,
+--     qual
+-- FROM pg_policies 
+-- WHERE tablename = 'properties'
+-- ORDER BY policyname;
+-- 
+-- SELECT 
+--     policyname,
+--     cmd,
+--     qual
+-- FROM pg_policies 
+-- WHERE tablename = 'units'
+-- ORDER BY policyname;
 
 -- ============================================================================
 -- STEP 4: Update trigger functions to publish properties with marketplace units
@@ -179,21 +173,52 @@ RAISE NOTICE 'Updated trigger functions to consider all marketplace statuses';
 -- STEP 5: Update existing property published status
 -- ============================================================================
 
--- Publish properties that have any marketplace units (available, applied, or rented)
-UPDATE public.properties p
-SET is_published = TRUE,
-    updated_at = NOW()
-WHERE is_published = FALSE
-AND EXISTS (
-    SELECT 1 FROM public.units u
-    WHERE u.property_id = p.id
-    AND u.listing_status IN ('available', 'applied', 'rented')
-    LIMIT 1
-);
-
-RAISE NOTICE 'Updated existing properties to be published if they have marketplace units';
+DO $$
+DECLARE
+    updated_count INTEGER;
+BEGIN
+    -- Publish properties that have any marketplace units (available, applied, or rented)
+    UPDATE public.properties p
+    SET is_published = TRUE,
+        updated_at = NOW()
+    WHERE is_published = FALSE
+    AND EXISTS (
+        SELECT 1 FROM public.units u
+        WHERE u.property_id = p.id
+        AND u.listing_status IN ('available', 'applied', 'rented')
+        LIMIT 1
+    );
+    
+    GET DIAGNOSTICS updated_count = ROW_COUNT;
+    RAISE NOTICE 'Published % properties that have marketplace units', updated_count;
+END $$;
 
 COMMIT;
+
+-- ============================================================================
+-- Summary
+-- ============================================================================
+
+DO $$
+BEGIN
+    RAISE NOTICE '';
+    RAISE NOTICE '============================================';
+    RAISE NOTICE 'Migration completed successfully!';
+    RAISE NOTICE '============================================';
+    RAISE NOTICE '';
+    RAISE NOTICE 'Changes applied:';
+    RAISE NOTICE '1. Added policy: Anyone can view published properties';
+    RAISE NOTICE '2. Updated policy: Tenants can view marketplace listings';
+    RAISE NOTICE '3. Updated trigger: update_property_published()';
+    RAISE NOTICE '4. Updated trigger: update_property_published_on_delete()';
+    RAISE NOTICE '5. Published properties with marketplace units';
+    RAISE NOTICE '';
+    RAISE NOTICE 'Next steps:';
+    RAISE NOTICE '- Test tenant property search page';
+    RAISE NOTICE '- Verify no "Property data missing" errors';
+    RAISE NOTICE '- Confirm status badges display correctly';
+    RAISE NOTICE '';
+END $$;
 
 -- ============================================================================
 -- Expected Result
