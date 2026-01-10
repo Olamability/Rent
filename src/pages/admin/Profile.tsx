@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import { 
@@ -131,8 +131,11 @@ const AdminProfile = () => {
     navigate("/admin/dashboard");
   };
 
-  // Calculate profile completeness
-  const profileCompleteness = user ? calculateAdminProfileCompleteness(user) : 0;
+  // Calculate profile completeness (memoized to avoid recalculation on every render)
+  const profileCompleteness = useMemo(
+    () => (user ? calculateAdminProfileCompleteness(user) : 0),
+    [user]
+  );
   const isProfileComplete = profileCompleteness === 100;
 
   return (
