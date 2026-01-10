@@ -299,6 +299,24 @@ export async function POST(request: NextRequest) {
               if (!agreementError && agreement) {
                 console.log('Agreement created successfully:', agreement.id)
                 
+                // CRITICAL: Mark unit as rented and occupied after successful payment
+                // This prevents further applications and locks the property
+                const { error: unitUpdateError } = await supabase
+                  .from('units')
+                  .update({
+                    listing_status: 'rented',
+                    is_occupied: true,
+                    current_tenant_id: application.tenant_id,
+                  })
+                  .eq('id', application.unit_id)
+                
+                if (unitUpdateError) {
+                  console.error('Error updating unit status:', unitUpdateError)
+                  // Log but don't fail the entire process
+                } else {
+                  console.log('Unit marked as rented and occupied:', application.unit_id)
+                }
+                
                 // Send notifications
                 await supabase.from('notifications').insert([
                   {
