@@ -216,7 +216,7 @@ export async function fetchApplicationsByLandlord(landlordId: string): Promise<A
           bathrooms,
           properties!inner(landlord_id, name, address, city)
         ),
-        tenant:users!property_applications_tenant_id_fkey(name, email, phone)
+        users!property_applications_tenant_id_fkey(name, email, phone)
       `)
       .eq('landlord_id', landlordId)
       .order('created_at', { ascending: false });
@@ -235,7 +235,7 @@ export async function fetchApplicationsByLandlord(landlordId: string): Promise<A
       // Add related data to the result for easier access by components
       result.properties = app.units?.properties;
       result.units = app.units;
-      result.users = app.tenant; // Use 'tenant' alias for clarity
+      result.users = app.users; // Direct reference to users join
       return result;
     });
   } catch (error) {
@@ -350,7 +350,7 @@ export async function updateApplicationStatus(
           property_id,
           properties!inner(name, landlord_id)
         ),
-        tenant:users!property_applications_tenant_id_fkey(name)
+        users!property_applications_tenant_id_fkey(name)
       `)
       .eq('id', applicationId)
       .single();
@@ -453,7 +453,7 @@ export async function fetchApplicationById(applicationId: string): Promise<Appli
           property_id,
           properties!inner(name, address, city, landlord_id)
         ),
-        tenant:users!property_applications_tenant_id_fkey(name, email, phone)
+        users!property_applications_tenant_id_fkey(name, email, phone)
       `)
       .eq('id', applicationId)
       .single();
@@ -471,7 +471,7 @@ export async function fetchApplicationById(applicationId: string): Promise<Appli
     // Add related data for component access
     result.properties = data.units?.properties;
     result.units = data.units;
-    result.tenant = data.tenant;
+    result.users = data.users; // Use consistent users reference
     return result;
   } catch (error) {
     console.error('Failed to fetch application:', error);
@@ -562,7 +562,7 @@ export async function withdrawApplication(
 /**
  * Helper function to map database application to TypeScript type
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function mapApplicationFromDb(dbApp: Record<string, any>): PropertyApplication {
   return {
     id: dbApp.id,

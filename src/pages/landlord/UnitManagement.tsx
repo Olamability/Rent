@@ -155,12 +155,17 @@ const UnitManagement = () => {
       // Transform to display format - data is already included from the query
       const displayApps: Application[] = apps.map((app) => {
         // The related data is attached by the service via ApplicationWithRelations type
+        // Build tenant name with fallbacks: users table -> personalInfo -> 'Unknown'
+        const tenantName = app.users?.name || 
+          (app.personalInfo?.firstName && app.personalInfo?.lastName 
+            ? `${app.personalInfo.firstName} ${app.personalInfo.lastName}` 
+            : app.personalInfo?.firstName || 'Unknown');
         
         return {
           id: app.id,
-          tenantName: app.users?.name || 'Unknown',
-          tenantEmail: app.users?.email,
-          tenantPhone: app.users?.phone,
+          tenantName,
+          tenantEmail: app.users?.email || app.personalInfo?.email,
+          tenantPhone: app.users?.phone || app.personalInfo?.phone,
           propertyName: app.properties?.name || 'Unknown Property',
           unitNumber: app.units?.unit_number || 'N/A',
           moveInDate: formatDateSafely(app.moveInDate),
