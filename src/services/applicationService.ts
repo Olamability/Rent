@@ -88,15 +88,20 @@ export async function submitApplication(data: {
       throw new Error('Property not found');
     }
 
-    // Get unit details
+    // Get unit details and check availability
     const { data: unit, error: unitError } = await supabase
       .from('units')
-      .select('unit_number')
+      .select('unit_number, listing_status, is_occupied')
       .eq('id', data.unitId)
       .single();
 
     if (unitError || !unit) {
       throw new Error('Unit not found');
+    }
+
+    // Prevent applications for rented/occupied properties
+    if (unit.listing_status === 'rented' || unit.is_occupied) {
+      throw new Error('This property is already occupied and not available for applications.');
     }
 
     // Insert the application - now with all extended fields
