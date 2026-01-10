@@ -516,12 +516,12 @@ export async function withdrawApplication(
       throw updateError;
     }
 
-    // Get unit and property details for notifications (using left join to avoid RLS issues)
+    // Get unit and property details for notifications (may fail due to RLS, use fallback values)
     const { data: unitData } = await supabase
       .from('units')
-      .select('unit_number, property_id, properties(name)')
+      .select('unit_number, property_id, properties!left(name)')
       .eq('id', application.unit_id)
-      .single();
+      .maybeSingle();
 
     // Get tenant name for notification
     const { data: tenant } = await supabase
