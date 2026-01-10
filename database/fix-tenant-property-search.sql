@@ -111,6 +111,88 @@ FROM pg_policies
 WHERE tablename = 'units'
 ORDER BY policyname;
 
+-- ============================================================================
+-- STEP 4: Update trigger functions to publish properties with marketplace units
+-- ============================================================================
+
+-- Update the function to consider 'available', 'applied', and 'rented' units
+CREATE OR REPLACE FUNCTION public.update_property_published()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Automatically set is_published on the parent property
+    -- A property should be published when it has at least one marketplace unit
+    -- (available, applied, or rented status)
+    IF EXISTS (
+        SELECT 1 FROM public.units
+        WHERE property_id = NEW.property_id
+        AND listing_status IN ('available', 'applied', 'rented')
+        LIMIT 1
+    ) THEN
+        -- Property has marketplace units, ensure it's published
+        UPDATE public.properties
+        SET is_published = TRUE,
+            updated_at = NOW()
+        WHERE id = NEW.property_id
+        AND is_published = FALSE;
+    ELSE
+        -- No marketplace units, unpublish the property
+        UPDATE public.properties
+        SET is_published = FALSE,
+            updated_at = NOW()
+        WHERE id = NEW.property_id
+        AND is_published = TRUE;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION public.update_property_published() IS 
+'Automatically publishes properties when they have marketplace units (available, applied, or rented) and unpublishes when they have none.';
+
+-- Update the delete trigger function as well
+CREATE OR REPLACE FUNCTION public.update_property_published_on_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- When a unit is deleted, check if the property still has marketplace units
+    IF NOT EXISTS (
+        SELECT 1 FROM public.units
+        WHERE property_id = OLD.property_id
+        AND listing_status IN ('available', 'applied', 'rented')
+        AND id != OLD.id
+        LIMIT 1
+    ) THEN
+        -- No more marketplace units, unpublish the property
+        UPDATE public.properties
+        SET is_published = FALSE,
+            updated_at = NOW()
+        WHERE id = OLD.property_id;
+    END IF;
+    
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+RAISE NOTICE 'Updated trigger functions to consider all marketplace statuses';
+
+-- ============================================================================
+-- STEP 5: Update existing property published status
+-- ============================================================================
+
+-- Publish properties that have any marketplace units (available, applied, or rented)
+UPDATE public.properties p
+SET is_published = TRUE,
+    updated_at = NOW()
+WHERE is_published = FALSE
+AND EXISTS (
+    SELECT 1 FROM public.units u
+    WHERE u.property_id = p.id
+    AND u.listing_status IN ('available', 'applied', 'rented')
+    LIMIT 1
+);
+
+RAISE NOTICE 'Updated existing properties to be published if they have marketplace units';
+
 COMMIT;
 
 -- ============================================================================

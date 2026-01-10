@@ -898,21 +898,22 @@ CREATE OR REPLACE FUNCTION public.update_property_published()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Automatically set is_published on the parent property
-    -- A property should be published when it has at least one available unit
+    -- A property should be published when it has at least one marketplace unit
+    -- (available, applied, or rented status)
     IF EXISTS (
         SELECT 1 FROM public.units
         WHERE property_id = NEW.property_id
-        AND listing_status = 'available'
+        AND listing_status IN ('available', 'applied', 'rented')
         LIMIT 1
     ) THEN
-        -- Property has available units, ensure it's published
+        -- Property has marketplace units, ensure it's published
         UPDATE public.properties
         SET is_published = TRUE,
             updated_at = NOW()
         WHERE id = NEW.property_id
         AND is_published = FALSE;
     ELSE
-        -- No available units, unpublish the property
+        -- No marketplace units, unpublish the property
         UPDATE public.properties
         SET is_published = FALSE,
             updated_at = NOW()
@@ -925,7 +926,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION public.update_property_published() IS 
-'Automatically publishes properties when they have available units and unpublishes when they have none.';
+'Automatically publishes properties when they have marketplace units (available, applied, or rented) and unpublishes when they have none.';
 
 -- Trigger to update property published status after unit insert or update
 CREATE TRIGGER trigger_update_property_published
@@ -938,15 +939,15 @@ CREATE TRIGGER trigger_update_property_published
 CREATE OR REPLACE FUNCTION public.update_property_published_on_delete()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- When a unit is deleted, check if the property still has available units
+    -- When a unit is deleted, check if the property still has marketplace units
     IF NOT EXISTS (
         SELECT 1 FROM public.units
         WHERE property_id = OLD.property_id
-        AND listing_status = 'available'
+        AND listing_status IN ('available', 'applied', 'rented')
         AND id != OLD.id
         LIMIT 1
     ) THEN
-        -- No more available units, unpublish the property
+        -- No more marketplace units, unpublish the property
         UPDATE public.properties
         SET is_published = FALSE,
             updated_at = NOW()
