@@ -1113,6 +1113,11 @@ CREATE POLICY "Admins can view all properties" ON public.properties
 CREATE POLICY "Admins can manage all properties" ON public.properties
     FOR ALL USING (public.is_admin());
 
+-- Allow anyone (including tenants and unauthenticated users) to view published properties
+-- This is necessary for the property search and details pages to work
+CREATE POLICY "Anyone can view published properties" ON public.properties
+    FOR SELECT USING (is_published = TRUE);
+
 -- ============================================================================
 -- RLS POLICIES: UNITS
 -- ============================================================================
@@ -1153,8 +1158,10 @@ CREATE POLICY "Landlords can delete their own units" ON public.units
         )
     );
 
-CREATE POLICY "Tenants can view public listings" ON public.units
-    FOR SELECT USING (is_public_listing = TRUE AND listing_status = 'available');
+-- Allow tenants to view units in the marketplace (available, applied, rented)
+-- This ensures tenants can see the full marketplace with proper status indicators
+CREATE POLICY "Tenants can view marketplace listings" ON public.units
+    FOR SELECT USING (listing_status IN ('available', 'applied', 'rented'));
 
 CREATE POLICY "Tenants can view their rented units" ON public.units
     FOR SELECT USING (
