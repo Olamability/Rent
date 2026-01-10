@@ -236,6 +236,7 @@ CREATE TABLE public.tenancy_agreements (
     unit_id UUID NOT NULL REFERENCES public.units(id) ON DELETE CASCADE,
     tenant_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     landlord_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    application_id UUID REFERENCES public.property_applications(id) ON DELETE SET NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     rent_amount DECIMAL(12, 2) NOT NULL,
@@ -254,6 +255,7 @@ CREATE TABLE public.tenancy_agreements (
 CREATE INDEX idx_tenancy_agreements_unit_id ON public.tenancy_agreements(unit_id);
 CREATE INDEX idx_tenancy_agreements_tenant_id ON public.tenancy_agreements(tenant_id);
 CREATE INDEX idx_tenancy_agreements_landlord_id ON public.tenancy_agreements(landlord_id);
+CREATE INDEX idx_tenancy_agreements_application_id ON public.tenancy_agreements(application_id);
 CREATE INDEX idx_tenancy_agreements_status ON public.tenancy_agreements(agreement_status);
 CREATE INDEX idx_tenancy_agreements_dates ON public.tenancy_agreements(start_date, end_date);
 
