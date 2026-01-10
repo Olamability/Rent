@@ -221,16 +221,10 @@ const PropertySearch = () => {
                         loading="lazy"
                       />
                       {/* Status badge */}
-                      {property.listingStatus === 'applied' && userAppliedUnitIds.has(property.unitId) && (
+                      {userAppliedUnitIds.has(property.unitId) && property.listingStatus !== 'rented' && (
                         <Badge variant="default" className="absolute top-2 left-2 text-xs bg-yellow-600 hover:bg-yellow-700">
                           <span className="sr-only">Status: </span>
                           Applied - Awaiting Payment
-                        </Badge>
-                      )}
-                      {property.listingStatus === 'applied' && !userAppliedUnitIds.has(property.unitId) && (
-                        <Badge variant="default" className="absolute top-2 left-2 text-xs bg-orange-600 hover:bg-orange-700">
-                          <span className="sr-only">Status: </span>
-                          Applied - Pending Payment
                         </Badge>
                       )}
                       {property.listingStatus === 'rented' && (
@@ -278,7 +272,7 @@ const PropertySearch = () => {
                             <Link to={`/tenant/property/${property.id}`}>View Details</Link>
                           </Button>
                           {/* Show "Make Payment" button only for properties where current user has applied */}
-                          {property.listingStatus === 'applied' && userAppliedUnitIds.has(property.unitId) ? (
+                          {userAppliedUnitIds.has(property.unitId) && property.listingStatus !== 'rented' ? (
                             <Button 
                               size="sm"
                               className="w-full sm:flex-1 text-xs sm:text-sm h-9"
