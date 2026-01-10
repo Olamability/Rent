@@ -3,7 +3,15 @@
 // Handles CRUD operations for admin profiles in Supabase
 
 import { supabase } from '@/lib/supabase';
-import type { AdminProfile } from '@/types';
+import type { AdminProfile, User } from '@/types';
+import { calculateAdminProfileCompleteness } from '@/lib/profileUtils';
+
+// Result type for upsert operation
+export interface AdminProfileUpsertResult {
+  profile: AdminProfile;
+  profileComplete: boolean;
+  profileCompleteness: number;
+}
 
 // Database column name mapping for admin_profiles table
 interface DatabaseAdminProfile {
@@ -125,11 +133,75 @@ export async function updateAdminProfile(
 }
 
 /**
- * Upsert is same as update for admin profiles
+ * Upsert admin profile and update profile completeness in users table
+ * Returns the updated profile along with completeness status
  */
 export async function upsertAdminProfile(
   userId: string,
   profile: Partial<AdminProfile>
-): Promise<AdminProfile> {
-  return updateAdminProfile(userId, profile);
+): Promise<AdminProfileUpsertResult> {
+  // First update the admin_profiles table
+  const updatedProfile = await updateAdminProfile(userId, profile);
+  
+  // Then calculate and update profile completeness in users table
+  try {
+    // Fetch user data to calculate completeness
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('name, email, phone, role, created_at, email_verified')
+      .eq('id', userId)
+      .single();
+    
+    if (userError) {
+      console.error('Error fetching user data for completeness calculation:', userError);
+      // Return profile with unknown completeness status
+      return {
+        profile: updatedProfile,
+        profileComplete: false,
+        profileCompleteness: 0,
+      };
+    }
+    
+    // Use the centralized profile completeness calculation
+    const userWithProfile: User = {
+      id: userId,
+      email: userData.email || '',
+      name: userData.name || '',
+      phone: userData.phone,
+      role: userData.role,
+      createdAt: userData.created_at ? new Date(userData.created_at) : new Date(),
+      isVerified: userData.email_verified || false,
+      profile: updatedProfile,
+    };
+    
+    const profileCompleteness = calculateAdminProfileCompleteness(userWithProfile);
+    const profileComplete = profileCompleteness === 100;
+    
+    // Update users table with completeness status
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        profile_complete: profileComplete,
+        profile_completeness: profileCompleteness,
+      })
+      .eq('id', userId);
+    
+    if (updateError) {
+      console.error('Error updating profile completeness in users table:', updateError);
+    }
+    
+    return {
+      profile: updatedProfile,
+      profileComplete,
+      profileCompleteness,
+    };
+  } catch (error) {
+    console.error('Error calculating/updating profile completeness:', error);
+    // Return profile with unknown completeness status
+    return {
+      profile: updatedProfile,
+      profileComplete: false,
+      profileCompleteness: 0,
+    };
+  }
 }

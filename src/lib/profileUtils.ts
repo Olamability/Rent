@@ -1,4 +1,4 @@
-import type { User, Tenant, Landlord, TenantProfile, LandlordProfile } from '@/types';
+import type { User, Tenant, Landlord, TenantProfile, LandlordProfile, AdminProfile } from '@/types';
 
 /**
  * Helper to check if a value is filled/valid
@@ -134,6 +134,39 @@ export const calculateLandlordProfileCompleteness = (user: Landlord): number => 
 };
 
 /**
+ * Calculate profile completeness percentage for an admin
+ */
+export const calculateAdminProfileCompleteness = (user: User): number => {
+  const adminProfile = user.profile as AdminProfile | undefined;
+  let completed = 0;
+  let total = 0;
+
+  // Basic user info - Required fields
+  const basicFields = [
+    user.name,
+    user.email,
+    user.phone,
+  ];
+  total += basicFields.length;
+  completed += basicFields.filter(isFilled).length;
+
+  // Admin profile fields - Required for approval
+  if (adminProfile) {
+    const profileFields = [
+      adminProfile.firstName,
+      adminProfile.lastName,
+    ];
+    total += profileFields.length;
+    completed += profileFields.filter(isFilled).length;
+  } else {
+    // If no admin profile exists, those fields count as incomplete
+    total += 2; // firstName and lastName
+  }
+
+  return Math.round((completed / total) * 100);
+};
+
+/**
  * Calculate profile completeness percentage for any user type
  */
 export const calculateProfileCompleteness = (user: User): number => {
@@ -141,9 +174,11 @@ export const calculateProfileCompleteness = (user: User): number => {
     return calculateTenantProfileCompleteness(user as Tenant);
   } else if (user.role === 'landlord') {
     return calculateLandlordProfileCompleteness(user as Landlord);
+  } else if (user.role === 'admin' || user.role === 'super_admin') {
+    return calculateAdminProfileCompleteness(user);
   }
   
-  // For admin or other roles, just check basic fields
+  // For other roles, just check basic fields
   const basicFields = [user.name, user.email, user.phone];
   const completed = basicFields.filter(Boolean).length;
   return Math.round((completed / basicFields.length) * 100);

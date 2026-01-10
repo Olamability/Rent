@@ -1,17 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import { 
-  User, Mail, Phone, Save, X as XIcon
+  User, Mail, Phone, Save, X as XIcon, AlertCircle, CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { fetchAdminProfile, upsertAdminProfile } from "@/services/adminProfileService";
 import { useAdminNavigation } from "@/hooks/useAdminNavigation";
+import { calculateAdminProfileCompleteness } from "@/lib/profileUtils";
 
 
 const AdminProfile = () => {
@@ -98,15 +100,25 @@ const AdminProfile = () => {
 
     setIsSaving(true);
     try {
-      // Save to backend database
-      await upsertAdminProfile(user.id, formData);
+      // Save to backend database and get completeness status
+      const result = await upsertAdminProfile(user.id, formData);
       
-      // Update local user context (only update phone, admin profile is stored separately)
+      // Update local user context with profile data and completeness
       updateUser({
         phone: formData.phone,
+        profile: result.profile,
+        profileComplete: result.profileComplete,
+        profileCompleteness: result.profileCompleteness,
       });
 
       toast.success("Profile updated successfully!");
+      
+      // Check if profile is now complete
+      if (result.profileComplete && user.accountStatus === 'pending') {
+        toast.success("✅ Profile complete! Your account is now eligible for approval.", {
+          duration: 5000,
+        });
+      }
     } catch (error) {
       console.error('Error saving profile:', error);
       toast.error("Failed to save profile. Please try again.");
@@ -119,6 +131,13 @@ const AdminProfile = () => {
     navigate("/admin/dashboard");
   };
 
+  // Calculate profile completeness (memoized to avoid recalculation on every render)
+  const profileCompleteness = useMemo(
+    () => (user ? calculateAdminProfileCompleteness(user) : 0),
+    [user]
+  );
+  const isProfileComplete = profileCompleteness === 100;
+
   return (
     <DashboardLayout
       navLinks={navLinks}
@@ -126,6 +145,26 @@ const AdminProfile = () => {
       pageDescription="Manage your admin account settings"
     >
       <div className="max-w-2xl mx-auto space-y-6">
+        {/* Profile Completeness Alert */}
+        {!isProfileComplete && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Your profile is <strong>{profileCompleteness}% complete</strong>. 
+              Please complete all required fields (marked with *) to become eligible for approval.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {isProfileComplete && user?.accountStatus === 'pending' && (
+          <Alert className="border-green-200 bg-green-50 dark:bg-green-950/20">
+            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+            <AlertDescription className="text-green-800 dark:text-green-300">
+              ✅ Profile complete! Your account is pending approval from a Super Admin.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Personal Information */}
         <Card className="p-6">
           <div className="flex items-center gap-3 mb-4">
