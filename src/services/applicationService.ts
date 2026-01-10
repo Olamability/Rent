@@ -516,41 +516,48 @@ export async function withdrawApplication(
       throw updateError;
     }
 
-    // Get unit and property details for notifications (may fail due to RLS, use fallback values)
-    const { data: unitData } = await supabase
-      .from('units')
-      .select('unit_number, property_id, properties!left(name)')
-      .eq('id', application.unit_id)
-      .maybeSingle();
+    // Send notifications - wrapped in try-catch to prevent notification failures from breaking withdrawal
+    try {
+      // Get unit and property details for notifications (may fail due to RLS, use fallback values)
+      const { data: unitData } = await supabase
+        .from('units')
+        .select('unit_number, property_id, properties!left(name)')
+        .eq('id', application.unit_id)
+        .maybeSingle();
 
-    // Get tenant name for notification
-    const { data: tenant } = await supabase
-      .from('users')
-      .select('name')
-      .eq('id', application.tenant_id)
-      .single();
+      // Get tenant name for notification
+      const { data: tenant } = await supabase
+        .from('users')
+        .select('name')
+        .eq('id', application.tenant_id)
+        .single();
 
-    const tenantName = tenant?.name || 'A tenant';
-    const unitNumber = unitData?.unit_number || 'Unknown Unit';
-    const propertyName = unitData?.properties?.name || 'a property';
+      const tenantName = tenant?.name || 'A tenant';
+      const unitNumber = unitData?.unit_number || 'Unknown Unit';
+      const propertyName = unitData?.properties?.name || 'a property';
 
-    // Notify landlord (use landlord_id from application table)
-    await createNotification({
-      userId: application.landlord_id,
-      title: 'Application Withdrawn',
-      message: `${tenantName} has withdrawn their application for ${propertyName} - Unit ${unitNumber}.${reason ? ` Reason: ${reason}` : ''}`,
-      type: 'info',
-      actionUrl: '/landlord/units',
-    });
+      // Notify landlord (use landlord_id from application table)
+      await createNotification({
+        userId: application.landlord_id,
+        title: 'Application Withdrawn',
+        message: `${tenantName} has withdrawn their application for ${propertyName} - Unit ${unitNumber}.${reason ? ` Reason: ${reason}` : ''}`,
+        type: 'info',
+        actionUrl: '/landlord/units',
+      });
 
-    // Notify tenant (confirmation)
-    await createNotification({
-      userId: application.tenant_id,
-      title: 'Application Withdrawn',
-      message: `You have successfully withdrawn your application for ${propertyName} - Unit ${unitNumber}.`,
-      type: 'success',
-      actionUrl: '/tenant/dashboard',
-    });
+      // Notify tenant (confirmation)
+      await createNotification({
+        userId: application.tenant_id,
+        title: 'Application Withdrawn',
+        message: `You have successfully withdrawn your application for ${propertyName} - Unit ${unitNumber}.`,
+        type: 'success',
+        actionUrl: '/tenant/dashboard',
+      });
+    } catch (notificationError) {
+      // Log notification error but don't fail the withdrawal
+      console.error('Failed to send withdrawal notifications:', notificationError);
+      // Withdrawal was successful, just notification failed
+    }
   } catch (error) {
     console.error('Failed to withdraw application:', error);
     throw error;
