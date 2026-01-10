@@ -3,7 +3,8 @@
 // Handles CRUD operations for admin profiles in Supabase
 
 import { supabase } from '@/lib/supabase';
-import type { AdminProfile } from '@/types';
+import type { AdminProfile, User } from '@/types';
+import { calculateAdminProfileCompleteness } from '@/lib/profileUtils';
 
 // Database column name mapping for admin_profiles table
 interface DatabaseAdminProfile {
@@ -126,11 +127,12 @@ export async function updateAdminProfile(
 
 /**
  * Upsert admin profile and update profile completeness in users table
+ * Returns the updated profile along with completeness status
  */
 export async function upsertAdminProfile(
   userId: string,
   profile: Partial<AdminProfile>
-): Promise<AdminProfile> {
+): Promise<{ profile: AdminProfile; profileComplete: boolean; profileCompleteness: number }> {
   // First update the admin_profiles table
   const updatedProfile = await updateAdminProfile(userId, profile);
   
@@ -139,26 +141,33 @@ export async function upsertAdminProfile(
     // Fetch user data to calculate completeness
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('name, email, phone')
+      .select('name, email, phone, role')
       .eq('id', userId)
       .single();
     
     if (userError) {
       console.error('Error fetching user data for completeness calculation:', userError);
-      // Don't throw - profile was saved successfully, just skip completeness update
-      return updatedProfile;
+      // Return profile with unknown completeness status
+      return {
+        profile: updatedProfile,
+        profileComplete: false,
+        profileCompleteness: 0,
+      };
     }
     
-    // Calculate profile completeness
-    const basicFields = [userData.name, userData.email, userData.phone];
-    const profileFields = [updatedProfile.firstName, updatedProfile.lastName];
+    // Use the centralized profile completeness calculation
+    const userWithProfile: User = {
+      id: userId,
+      email: userData.email || '',
+      name: userData.name || '',
+      phone: userData.phone,
+      role: userData.role,
+      createdAt: new Date(),
+      isVerified: true,
+      profile: updatedProfile,
+    };
     
-    const totalFields = basicFields.length + profileFields.length;
-    const completedFields = [...basicFields, ...profileFields].filter(field => 
-      field !== null && field !== undefined && String(field).trim().length > 0
-    ).length;
-    
-    const profileCompleteness = Math.round((completedFields / totalFields) * 100);
+    const profileCompleteness = calculateAdminProfileCompleteness(userWithProfile);
     const profileComplete = profileCompleteness === 100;
     
     // Update users table with completeness status
@@ -172,12 +181,20 @@ export async function upsertAdminProfile(
     
     if (updateError) {
       console.error('Error updating profile completeness in users table:', updateError);
-      // Don't throw - profile was saved, just log the error
     }
+    
+    return {
+      profile: updatedProfile,
+      profileComplete,
+      profileCompleteness,
+    };
   } catch (error) {
     console.error('Error calculating/updating profile completeness:', error);
-    // Don't throw - profile was saved successfully
+    // Return profile with unknown completeness status
+    return {
+      profile: updatedProfile,
+      profileComplete: false,
+      profileCompleteness: 0,
+    };
   }
-  
-  return updatedProfile;
 }

@@ -100,31 +100,21 @@ const AdminProfile = () => {
 
     setIsSaving(true);
     try {
-      // Save to backend database
-      await upsertAdminProfile(user.id, formData);
+      // Save to backend database and get completeness status
+      const result = await upsertAdminProfile(user.id, formData);
       
-      // Update local user context with profile data
-      const updatedProfile = {
-        ...user.profile,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-      };
-      
+      // Update local user context with profile data and completeness
       updateUser({
         phone: formData.phone,
-        profile: updatedProfile,
+        profile: result.profile,
+        profileComplete: result.profileComplete,
+        profileCompleteness: result.profileCompleteness,
       });
 
       toast.success("Profile updated successfully!");
       
       // Check if profile is now complete
-      const completeness = calculateProfileCompleteness({
-        ...user,
-        phone: formData.phone,
-        profile: updatedProfile,
-      });
-      
-      if (completeness === 100 && user.accountStatus === 'pending') {
+      if (result.profileComplete && user.accountStatus === 'pending') {
         toast.success("✅ Profile complete! Your account is now eligible for approval.", {
           duration: 5000,
         });
