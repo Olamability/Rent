@@ -18,6 +18,19 @@ export const DocumentViewerDialog = ({ open, onOpenChange, agreement }: Document
     toast.success("Agreement downloaded successfully!");
   };
 
+  // Helper function to format property address
+  const formatPropertyAddress = () => {
+    if (agreement.property?.address) {
+      const parts = [
+        agreement.property.address,
+        agreement.property.city,
+        agreement.property.state
+      ].filter(Boolean); // Remove empty/undefined values
+      return parts.join(', ');
+    }
+    return agreement.property?.name || 'Property Address';
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -46,7 +59,7 @@ export const DocumentViewerDialog = ({ open, onOpenChange, agreement }: Document
             <div className="space-y-2 text-foreground">
               <p><strong>Landlord:</strong> {agreement.landlord?.name || 'RentFlow Property Management LLC'}</p>
               <p><strong>Tenant:</strong> {agreement.tenant?.name || 'Tenant'}</p>
-              <p><strong>Property Address:</strong> {agreement.property?.address ? `${agreement.property.address}, ${agreement.property.city || ''}, ${agreement.property.state || ''}`.trim() : agreement.property?.name || 'Property Address'}</p>
+              <p><strong>Property Address:</strong> {formatPropertyAddress()}</p>
             </div>
           </section>
 
