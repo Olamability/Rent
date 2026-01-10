@@ -3,21 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Download, FileText, Calendar, User } from "lucide-react";
 import { toast } from "sonner";
-
-interface Agreement {
-  id: string;
-  property: string;
-  startDate: string;
-  endDate: string;
-  rent: number;
-  depositAmount: number;
-  status: string;
-}
+import { TenancyAgreement } from "@/services/agreementService";
 
 interface DocumentViewerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  agreement: Agreement | null;
+  agreement: TenancyAgreement | null;
 }
 
 export const DocumentViewerDialog = ({ open, onOpenChange, agreement }: DocumentViewerDialogProps) => {
@@ -25,6 +16,19 @@ export const DocumentViewerDialog = ({ open, onOpenChange, agreement }: Document
 
   const handleDownload = () => {
     toast.success("Agreement downloaded successfully!");
+  };
+
+  // Helper function to format property address
+  const formatPropertyAddress = () => {
+    if (agreement.property?.address) {
+      const parts = [
+        agreement.property.address,
+        agreement.property.city,
+        agreement.property.state
+      ].filter(Boolean); // Remove empty/undefined values
+      return parts.join(', ');
+    }
+    return agreement.property?.name || 'Property Address';
   };
 
   return (
@@ -36,7 +40,7 @@ export const DocumentViewerDialog = ({ open, onOpenChange, agreement }: Document
             Tenancy Agreement - Full Document
           </DialogTitle>
           <DialogDescription>
-            {agreement.property} | Agreement ID: {agreement.id}
+            {agreement.property?.name || 'Property'} | Agreement ID: {agreement.id}
           </DialogDescription>
         </DialogHeader>
         
@@ -53,9 +57,9 @@ export const DocumentViewerDialog = ({ open, onOpenChange, agreement }: Document
           <section>
             <h3 className="text-lg font-semibold text-foreground mb-3">1. Parties</h3>
             <div className="space-y-2 text-foreground">
-              <p><strong>Landlord:</strong> RentFlow Property Management LLC</p>
-              <p><strong>Tenant:</strong> Sarah Johnson</p>
-              <p><strong>Property Address:</strong> {agreement.property}</p>
+              <p><strong>Landlord:</strong> {agreement.landlord?.name || 'RentFlow Property Management LLC'}</p>
+              <p><strong>Tenant:</strong> {agreement.tenant?.name || 'Tenant'}</p>
+              <p><strong>Property Address:</strong> {formatPropertyAddress()}</p>
             </div>
           </section>
 
@@ -90,7 +94,7 @@ export const DocumentViewerDialog = ({ open, onOpenChange, agreement }: Document
             <div className="space-y-3 text-foreground">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Monthly Rent:</span>
-                <span className="font-semibold">${agreement.rent}</span>
+                <span className="font-semibold">${agreement.rentAmount || 0}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Security Deposit:</span>
@@ -160,16 +164,16 @@ export const DocumentViewerDialog = ({ open, onOpenChange, agreement }: Document
               <div className="border border-border rounded-lg p-4">
                 <p className="text-sm text-muted-foreground mb-2">Landlord Signature</p>
                 <div className="h-20 flex items-center">
-                  <p className="font-signature text-2xl text-foreground">RentFlow Management</p>
+                  <p className="font-signature text-2xl text-foreground">{agreement.landlord?.name || 'RentFlow Management'}</p>
                 </div>
-                <p className="text-sm text-muted-foreground mt-2">Date: {agreement.startDate}</p>
+                <p className="text-sm text-muted-foreground mt-2">Date: {agreement.signedAt || agreement.startDate}</p>
               </div>
               <div className="border border-border rounded-lg p-4">
                 <p className="text-sm text-muted-foreground mb-2">Tenant Signature</p>
                 <div className="h-20 flex items-center">
-                  <p className="font-signature text-2xl text-foreground">Sarah Johnson</p>
+                  <p className="font-signature text-2xl text-foreground">{agreement.tenant?.name || 'Tenant'}</p>
                 </div>
-                <p className="text-sm text-muted-foreground mt-2">Date: {agreement.startDate}</p>
+                <p className="text-sm text-muted-foreground mt-2">Date: {agreement.signedAt || agreement.startDate}</p>
               </div>
             </div>
           </section>
