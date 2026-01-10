@@ -869,13 +869,13 @@ CREATE OR REPLACE FUNCTION public.update_unit_public_listing()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Automatically set is_public_listing based on listing_status
-    -- A unit should be publicly listed ONLY when status is 'available'
-    -- Code uses: 'available', 'applied', 'rented', 'unlisted'
+    -- Note: is_public_listing is TRUE only for 'available' units
+    -- However, RLS policies allow viewing all marketplace statuses ('available', 'applied', 'rented')
+    -- The is_public_listing flag is used for filtering and highlighting, not access control
     IF NEW.listing_status = 'available' THEN
         NEW.is_public_listing := TRUE;
     ELSE
         -- For 'applied', 'rented', or 'unlisted' status
-        -- the unit should not be publicly listed
         NEW.is_public_listing := FALSE;
     END IF;
     
@@ -884,7 +884,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION public.update_unit_public_listing() IS 
-'Automatically sets is_public_listing flag based on listing_status. Units with status "available" are made public, all others (applied, rented, unlisted) are not publicly listed.';
+'Automatically sets is_public_listing flag based on listing_status. Units with status "available" are marked as public listings (is_public_listing=TRUE). Other statuses (applied, rented, unlisted) are not marked as public listings but may still be visible via RLS policies for marketplace display.';
 
 -- Trigger to update is_public_listing before insert or update
 CREATE TRIGGER trigger_update_unit_public_listing
@@ -1161,6 +1161,9 @@ CREATE POLICY "Landlords can delete their own units" ON public.units
 
 -- Allow tenants to view units in the marketplace (available, applied, rented)
 -- This ensures tenants can see the full marketplace with proper status indicators
+-- Note: This policy intentionally does NOT check is_public_listing flag
+-- The flag is used for filtering/highlighting, not access control
+-- Marketplace visibility requirements specify that all statuses should be visible
 CREATE POLICY "Tenants can view marketplace listings" ON public.units
     FOR SELECT USING (listing_status IN ('available', 'applied', 'rented'));
 

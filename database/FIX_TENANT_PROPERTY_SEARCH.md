@@ -107,8 +107,25 @@ The new policies are safe because:
 
 1. **Published properties are meant to be public**: The `is_published` flag is a conscious decision by landlords to make their properties visible
 2. **Marketplace visibility is a feature**: Showing applied/rented properties helps all tenants understand the full marketplace
-3. **Personal data is protected**: Only property information is exposed, not tenant personal information or sensitive details
-4. **Existing protections remain**: Other tables (tenancy_agreements, payments, etc.) maintain their restrictive RLS policies
+3. **The `is_public_listing` flag has a different purpose**: It's used for filtering and highlighting, not for access control. The RLS policy intentionally does NOT check this flag because:
+   - Requirements specify that all marketplace statuses ('available', 'applied', 'rented') should be visible
+   - The flag is automatically set based on status (TRUE for 'available', FALSE for others)
+   - Access control is based on `listing_status`, which represents the actual state of the unit
+4. **Personal data is protected**: Only property information is exposed, not tenant personal information or sensitive details
+5. **Existing protections remain**: Other tables (tenancy_agreements, payments, etc.) maintain their restrictive RLS policies
+
+### Design Rationale: is_public_listing vs listing_status
+
+- **`listing_status`**: Represents the actual state of the unit (available, applied, rented, unlisted)
+  - Used for access control in RLS policies
+  - Determines what tenants can see in the marketplace
+  
+- **`is_public_listing`**: A flag for filtering and highlighting
+  - Set to TRUE only for 'available' units
+  - Can be used for featured listings, search filters, or UI highlighting
+  - NOT used for access control
+
+This separation allows landlords to control visibility through `listing_status` while maintaining flexibility for UI/UX features through `is_public_listing`.
 
 ## Related Documentation
 
