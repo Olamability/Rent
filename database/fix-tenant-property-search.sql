@@ -25,9 +25,6 @@ BEGIN;
 -- STEP 1: Add policy to allow tenants to view published properties
 -- ============================================================================
 
--- Drop the old restrictive policy if it exists
-DROP POLICY IF EXISTS "Tenants can view public listings" ON public.units;
-
 -- Add policy allowing anyone to view published properties
 -- This allows the units->properties join to return data for tenants
 DO $$
@@ -57,7 +54,7 @@ END $$;
 -- should see properties with status 'available', 'applied', OR 'rented'
 DO $$
 BEGIN
-    -- Drop old policy if it exists (we already did this above, but being safe)
+    -- Drop old policy if it exists
     IF EXISTS (
         SELECT 1 FROM pg_policies 
         WHERE tablename = 'units' 
@@ -201,23 +198,23 @@ COMMIT;
 
 DO $$
 BEGIN
-    RAISE NOTICE '';
-    RAISE NOTICE '============================================';
-    RAISE NOTICE 'Migration completed successfully!';
-    RAISE NOTICE '============================================';
-    RAISE NOTICE '';
-    RAISE NOTICE 'Changes applied:';
-    RAISE NOTICE '1. Added policy: Anyone can view published properties';
-    RAISE NOTICE '2. Updated policy: Tenants can view marketplace listings';
-    RAISE NOTICE '3. Updated trigger: update_property_published()';
-    RAISE NOTICE '4. Updated trigger: update_property_published_on_delete()';
-    RAISE NOTICE '5. Published properties with marketplace units';
-    RAISE NOTICE '';
-    RAISE NOTICE 'Next steps:';
-    RAISE NOTICE '- Test tenant property search page';
-    RAISE NOTICE '- Verify no "Property data missing" errors';
-    RAISE NOTICE '- Confirm status badges display correctly';
-    RAISE NOTICE '';
+    RAISE NOTICE '
+============================================
+Migration completed successfully!
+============================================
+
+Changes applied:
+1. Added policy: Anyone can view published properties
+2. Updated policy: Tenants can view marketplace listings
+3. Updated trigger: update_property_published()
+4. Updated trigger: update_property_published_on_delete()
+5. Published properties with marketplace units
+
+Next steps:
+- Test tenant property search page
+- Verify no "Property data missing" errors
+- Confirm status badges display correctly
+';
 END $$;
 
 -- ============================================================================
