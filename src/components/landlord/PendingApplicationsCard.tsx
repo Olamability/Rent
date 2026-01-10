@@ -42,16 +42,24 @@ export const PendingApplicationsCard = () => {
         // Get only pending applications
         const pendingApps = apps
           .filter(app => app.status === 'pending')
-          .map(app => ({
-            id: app.id,
-            tenantName: app.users?.name || 'Unknown',
-            propertyName: app.properties?.name || 'Unknown Property',
-            unitNumber: app.units?.unit_number || 'N/A',
-            income: app.employmentInfo?.income || 0,
-            moveInDate: app.moveInDate,
-            submittedAt: app.submittedAt,
-            status: app.status,
-          }))
+          .map(app => {
+            // Build tenant name with fallbacks: users table -> personalInfo -> 'Unknown'
+            const tenantName = app.users?.name || 
+              (app.personalInfo?.firstName && app.personalInfo?.lastName 
+                ? `${app.personalInfo.firstName} ${app.personalInfo.lastName}` 
+                : app.personalInfo?.firstName || 'Unknown');
+            
+            return {
+              id: app.id,
+              tenantName,
+              propertyName: app.properties?.name || 'Unknown Property',
+              unitNumber: app.units?.unit_number || 'N/A',
+              income: app.employmentInfo?.income || 0,
+              moveInDate: app.moveInDate,
+              submittedAt: app.submittedAt,
+              status: app.status,
+            };
+          })
           .sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime())
           .slice(0, 5); // Show top 5 most recent
 
