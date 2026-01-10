@@ -52,18 +52,12 @@ END $$;
 -- Create or replace the policy to allow tenants to view marketplace listings
 -- This aligns with the marketplace visibility requirements that tenants
 -- should see properties with status 'available', 'applied', OR 'rented'
+
+-- Drop old policy if it exists (using IF EXISTS for idempotency)
+DROP POLICY IF EXISTS "Tenants can view public listings" ON public.units;
+
 DO $$
 BEGIN
-    -- Drop old policy if it exists
-    IF EXISTS (
-        SELECT 1 FROM pg_policies 
-        WHERE tablename = 'units' 
-        AND policyname = 'Tenants can view public listings'
-    ) THEN
-        DROP POLICY "Tenants can view public listings" ON public.units;
-        RAISE NOTICE 'Dropped old policy: Tenants can view public listings';
-    END IF;
-    
     -- Check if new policy already exists
     IF NOT EXISTS (
         SELECT 1 FROM pg_policies 
