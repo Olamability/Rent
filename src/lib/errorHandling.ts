@@ -65,7 +65,10 @@ export class AppError extends Error {
     this.isOperational = isOperational;
     
     // Maintains proper stack trace for where our error was thrown
-    Error.captureStackTrace(this, this.constructor);
+    // Error.captureStackTrace is not available in all environments (e.g., Safari/WebKit)
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
   }
 }
 

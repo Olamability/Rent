@@ -209,30 +209,61 @@ const UnitManagement = () => {
       // For each unit, fetch tenant if occupied
       const unitPromises = properties.map(async (p) => {
         let tenantName: string | null = null;
-        if (p.listingStatus !== 'available' && p.unitId) {
-          // Find current tenant for this unit
-          const { data: agreement } = await supabase
-            .from('tenancy_agreements')
-            .select('tenant_id')
-            .eq('unit_id', p.unitId)
-            .eq('agreement_status', 'active')
-            .maybeSingle();
-          if (agreement?.tenant_id) {
-            const { data: tenantUser } = await supabase
-              .from('users')
-              .select('name')
-              .eq('id', agreement.tenant_id)
+        let displayStatus: string;
+        
+        // Determine unit status based on listing_status
+        if (p.listingStatus === 'available' || p.listingStatus === 'unlisted') {
+          displayStatus = 'vacant';
+        } else if (p.listingStatus === 'applied') {
+          // Application approved but payment not yet completed
+          displayStatus = 'reserved';
+        } else if (p.listingStatus === 'rented') {
+          // Payment completed, tenant has moved in or will move in
+          displayStatus = 'occupied';
+        } else {
+          displayStatus = 'vacant'; // Default fallback
+        }
+        
+        // Find current tenant for non-vacant units
+        if (p.listingStatus !== 'available' && p.listingStatus !== 'unlisted' && p.unitId) {
+          // For rented units, fetch active agreement
+          if (p.listingStatus === 'rented') {
+            const { data: agreement } = await supabase
+              .from('tenancy_agreements')
+              .select('tenant_id')
+              .eq('unit_id', p.unitId)
+              .eq('agreement_status', 'active')
               .maybeSingle();
-            tenantName = tenantUser?.name || null;
+            if (agreement?.tenant_id) {
+              const { data: tenantUser } = await supabase
+                .from('users')
+                .select('name')
+                .eq('id', agreement.tenant_id)
+                .maybeSingle();
+              tenantName = tenantUser?.name || null;
+            }
+          } 
+          // For reserved units (approved application), fetch applicant name
+          else if (p.listingStatus === 'applied') {
+            const { data: application } = await supabase
+              .from('property_applications')
+              .select('tenant_id, users!property_applications_tenant_id_fkey(name)')
+              .eq('unit_id', p.unitId)
+              .eq('application_status', 'approved')
+              .maybeSingle();
+            if (application?.users?.name) {
+              tenantName = `${application.users.name} (Pending)`;
+            }
           }
         }
+        
         return {
           id: p.unitId,
           property: p.name,
           unit: p.unitNumber,
           tenant: tenantName,
           rent: p.rentAmount,
-          status: p.listingStatus === 'available' ? 'vacant' : 'occupied',
+          status: displayStatus,
           bedrooms: p.bedrooms,
           bathrooms: p.bathrooms,
           squareFeet: p.squareFeet,
@@ -353,7 +384,9 @@ const UnitManagement = () => {
                 <div>
                   <Label>Status</Label>
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    selectedUnit.status === 'occupied' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+                    selectedUnit.status === 'occupied' ? 'bg-success/10 text-success' : 
+                    selectedUnit.status === 'reserved' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' :
+                    'bg-warning/10 text-warning'
                   }`}>
                     {selectedUnit.status}
                   </span>
@@ -411,7 +444,9 @@ const UnitManagement = () => {
                   <td className="p-4 text-foreground">${unit.rent}</td>
                   <td className="p-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      unit.status === 'occupied' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+                      unit.status === 'occupied' ? 'bg-success/10 text-success' : 
+                      unit.status === 'reserved' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' :
+                      'bg-warning/10 text-warning'
                     }`}>
                       {unit.status}
                     </span>
