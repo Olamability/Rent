@@ -220,7 +220,9 @@ export async function incrementUnitViewCount(unitId: string): Promise<void> {
 }
 
 /**
- * Fetch all available properties with their units for tenants to browse
+ * Fetch all marketplace properties with their units for tenants to browse
+ * Includes available, applied (pending payment), and rented properties
+ * This ensures all tenants can see the full marketplace with proper status indicators
  */
 export async function fetchAvailableProperties(): Promise<PropertyWithUnit[]> {
   try {
@@ -251,7 +253,8 @@ export async function fetchAvailableProperties(): Promise<PropertyWithUnit[]> {
           longitude
         )
       `)
-      .eq('listing_status', 'available')
+      .in('listing_status', ['available', 'applied', 'rented'])
+      .order('listing_status', { ascending: true })
       .order('rent_amount', { ascending: true });
 
     if (error) {
