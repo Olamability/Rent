@@ -326,11 +326,9 @@ export async function fetchAppliedPropertiesForTenant(tenantId: string): Promise
     );
 
     // Get units where this tenant has an approved application
-    // Note: We filter by both application_status='approved' AND listing_status='applied'
-    // These statuses are synchronized by the application approval workflow:
-    // - When landlord approves application -> listing_status changes to 'applied'
-    // - When application is withdrawn -> listing_status reverts to 'available'
-    // This ensures consistency between application state and unit availability
+    // Note: After the fix, units remain 'available' until payment is completed
+    // We only check if the tenant has an 'approved' application status
+    // The unit's listing_status will only change to 'rented' after payment completion
     const { data, error } = await supabase
       .from('property_applications')
       .select(`
@@ -364,7 +362,7 @@ export async function fetchAppliedPropertiesForTenant(tenantId: string): Promise
       `)
       .eq('tenant_id', tenantId)
       .eq('application_status', 'approved')
-      .eq('units.listing_status', 'applied');
+      .neq('units.listing_status', 'rented'); // Exclude already rented units (payment completed)
 
     if (error) {
       const appError = parseSupabaseError(error);
