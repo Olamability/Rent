@@ -869,13 +869,13 @@ CREATE OR REPLACE FUNCTION public.update_unit_public_listing()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Automatically set is_public_listing based on listing_status
-    -- A unit should be publicly listed ONLY when status is 'available'
-    -- Code uses: 'available', 'applied', 'rented', 'unlisted'
+    -- Note: is_public_listing is TRUE only for 'available' units
+    -- However, RLS policies allow viewing all marketplace statuses ('available', 'applied', 'rented')
+    -- The is_public_listing flag is used for filtering and highlighting, not access control
     IF NEW.listing_status = 'available' THEN
         NEW.is_public_listing := TRUE;
     ELSE
         -- For 'applied', 'rented', or 'unlisted' status
-        -- the unit should not be publicly listed
         NEW.is_public_listing := FALSE;
     END IF;
     
@@ -884,7 +884,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION public.update_unit_public_listing() IS 
-'Automatically sets is_public_listing flag based on listing_status. Units with status "available" are made public, all others (applied, rented, unlisted) are not publicly listed.';
+'Automatically sets is_public_listing flag based on listing_status. Units with status "available" are marked as public listings (is_public_listing=TRUE). Other statuses (applied, rented, unlisted) are not marked as public listings but may still be visible via RLS policies for marketplace display.';
 
 -- Trigger to update is_public_listing before insert or update
 CREATE TRIGGER trigger_update_unit_public_listing
@@ -898,21 +898,22 @@ CREATE OR REPLACE FUNCTION public.update_property_published()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Automatically set is_published on the parent property
-    -- A property should be published when it has at least one available unit
+    -- A property should be published when it has at least one marketplace unit
+    -- (available, applied, or rented status)
     IF EXISTS (
         SELECT 1 FROM public.units
         WHERE property_id = NEW.property_id
-        AND listing_status = 'available'
+        AND listing_status IN ('available', 'applied', 'rented')
         LIMIT 1
     ) THEN
-        -- Property has available units, ensure it's published
+        -- Property has marketplace units, ensure it's published
         UPDATE public.properties
         SET is_published = TRUE,
             updated_at = NOW()
         WHERE id = NEW.property_id
         AND is_published = FALSE;
     ELSE
-        -- No available units, unpublish the property
+        -- No marketplace units, unpublish the property
         UPDATE public.properties
         SET is_published = FALSE,
             updated_at = NOW()
@@ -925,7 +926,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION public.update_property_published() IS 
-'Automatically publishes properties when they have available units and unpublishes when they have none.';
+'Automatically publishes properties when they have marketplace units (available, applied, or rented) and unpublishes when they have none.';
 
 -- Trigger to update property published status after unit insert or update
 CREATE TRIGGER trigger_update_property_published
@@ -938,15 +939,15 @@ CREATE TRIGGER trigger_update_property_published
 CREATE OR REPLACE FUNCTION public.update_property_published_on_delete()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- When a unit is deleted, check if the property still has available units
+    -- When a unit is deleted, check if the property still has marketplace units
     IF NOT EXISTS (
         SELECT 1 FROM public.units
         WHERE property_id = OLD.property_id
-        AND listing_status = 'available'
+        AND listing_status IN ('available', 'applied', 'rented')
         AND id != OLD.id
         LIMIT 1
     ) THEN
-        -- No more available units, unpublish the property
+        -- No more marketplace units, unpublish the property
         UPDATE public.properties
         SET is_published = FALSE,
             updated_at = NOW()
@@ -1113,6 +1114,11 @@ CREATE POLICY "Admins can view all properties" ON public.properties
 CREATE POLICY "Admins can manage all properties" ON public.properties
     FOR ALL USING (public.is_admin());
 
+-- Allow anyone (including tenants and unauthenticated users) to view published properties
+-- This is necessary for the property search and details pages to work
+CREATE POLICY "Anyone can view published properties" ON public.properties
+    FOR SELECT USING (is_published = TRUE);
+
 -- ============================================================================
 -- RLS POLICIES: UNITS
 -- ============================================================================
@@ -1153,8 +1159,13 @@ CREATE POLICY "Landlords can delete their own units" ON public.units
         )
     );
 
-CREATE POLICY "Tenants can view public listings" ON public.units
-    FOR SELECT USING (is_public_listing = TRUE AND listing_status = 'available');
+-- Allow tenants to view units in the marketplace (available, applied, rented)
+-- This ensures tenants can see the full marketplace with proper status indicators
+-- Note: This policy intentionally does NOT check is_public_listing flag
+-- The flag is used for filtering/highlighting, not access control
+-- Marketplace visibility requirements specify that all statuses should be visible
+CREATE POLICY "Tenants can view marketplace listings" ON public.units
+    FOR SELECT USING (listing_status IN ('available', 'applied', 'rented'));
 
 CREATE POLICY "Tenants can view their rented units" ON public.units
     FOR SELECT USING (
