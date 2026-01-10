@@ -27,6 +27,9 @@ interface AdminUser {
   account_status: string;
   created_at: string;
   last_login?: string;
+  profile_complete?: boolean;
+  profile_completeness?: number;
+  phone?: string;
 }
 
 const AdminManagement = () => {
@@ -44,7 +47,7 @@ const AdminManagement = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('users')
-        .select('id, name, email, role, account_status, created_at, last_login')
+        .select('id, name, email, role, account_status, created_at, last_login, profile_complete, profile_completeness, phone')
         .in('role', ['admin', 'super_admin'])
         .order('created_at', { ascending: false });
 
@@ -204,6 +207,7 @@ const AdminManagement = () => {
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Profile</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Last Login</TableHead>
@@ -216,6 +220,17 @@ const AdminManagement = () => {
                       <TableCell className="font-medium">{admin.name}</TableCell>
                       <TableCell>{admin.email}</TableCell>
                       <TableCell>{getRoleBadge(admin.role)}</TableCell>
+                      <TableCell>
+                        {admin.profile_complete ? (
+                          <Badge variant="default" className="bg-green-600">
+                            Complete
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">
+                            {admin.profile_completeness || 0}%
+                          </Badge>
+                        )}
+                      </TableCell>
                       <TableCell>{getStatusBadge(admin.account_status)}</TableCell>
                       <TableCell className="text-sm">
                         {new Date(admin.created_at).toLocaleDateString()}

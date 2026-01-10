@@ -125,11 +125,59 @@ export async function updateAdminProfile(
 }
 
 /**
- * Upsert is same as update for admin profiles
+ * Upsert admin profile and update profile completeness in users table
  */
 export async function upsertAdminProfile(
   userId: string,
   profile: Partial<AdminProfile>
 ): Promise<AdminProfile> {
-  return updateAdminProfile(userId, profile);
+  // First update the admin_profiles table
+  const updatedProfile = await updateAdminProfile(userId, profile);
+  
+  // Then calculate and update profile completeness in users table
+  try {
+    // Fetch user data to calculate completeness
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('name, email, phone')
+      .eq('id', userId)
+      .single();
+    
+    if (userError) {
+      console.error('Error fetching user data for completeness calculation:', userError);
+      // Don't throw - profile was saved successfully, just skip completeness update
+      return updatedProfile;
+    }
+    
+    // Calculate profile completeness
+    const basicFields = [userData.name, userData.email, userData.phone];
+    const profileFields = [updatedProfile.firstName, updatedProfile.lastName];
+    
+    const totalFields = basicFields.length + profileFields.length;
+    const completedFields = [...basicFields, ...profileFields].filter(field => 
+      field !== null && field !== undefined && String(field).trim().length > 0
+    ).length;
+    
+    const profileCompleteness = Math.round((completedFields / totalFields) * 100);
+    const profileComplete = profileCompleteness === 100;
+    
+    // Update users table with completeness status
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        profile_complete: profileComplete,
+        profile_completeness: profileCompleteness,
+      })
+      .eq('id', userId);
+    
+    if (updateError) {
+      console.error('Error updating profile completeness in users table:', updateError);
+      // Don't throw - profile was saved, just log the error
+    }
+  } catch (error) {
+    console.error('Error calculating/updating profile completeness:', error);
+    // Don't throw - profile was saved successfully
+  }
+  
+  return updatedProfile;
 }
