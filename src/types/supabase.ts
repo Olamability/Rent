@@ -250,38 +250,41 @@ export type Database = {
       documents: {
         Row: {
           created_at: string | null
-          doc_url: string
+          file_url: string
           document_type: string
           file_size: number | null
           id: string
           mime_type: string | null
-          name: string
-          owner_id: string
+          file_name: string
+          uploaded_by: string
+          updated_at: string | null
         }
         Insert: {
           created_at?: string | null
-          doc_url: string
+          file_url: string
           document_type: string
           file_size?: number | null
           id?: string
           mime_type?: string | null
-          name: string
-          owner_id: string
+          file_name: string
+          uploaded_by: string
+          updated_at?: string | null
         }
         Update: {
           created_at?: string | null
-          doc_url?: string
+          file_url?: string
           document_type?: string
           file_size?: number | null
           id?: string
           mime_type?: string | null
-          name?: string
-          owner_id?: string
+          file_name?: string
+          uploaded_by?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "documents_owner_id_fkey"
-            columns: ["owner_id"]
+            foreignKeyName: "documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]

@@ -219,8 +219,8 @@ async function fetchMaintenanceRequests(tenantId: string) {
 async function fetchDocuments(tenantId: string) {
   const { data, error } = await supabase
     .from('documents')
-    .select('id, name, document_type, file_size, created_at, doc_url, mime_type')
-    .eq('owner_id', tenantId)
+    .select('id, file_name, document_type, file_size, created_at, file_url, mime_type')
+    .eq('uploaded_by', tenantId)
     .order('created_at', { ascending: false })
     .limit(5);
   
@@ -244,11 +244,11 @@ async function fetchDocuments(tenantId: string) {
       : `${((doc.file_size || 0) / 1024).toFixed(0)} KB`;
     
     return {
-      name: doc.name,
+      name: doc.file_name,
       type: doc.document_type ? doc.document_type.toUpperCase() : 'UNKNOWN',
       size: formattedSize,
       date: formattedDate,
-      url: doc.doc_url,
+      url: doc.file_url,
     };
   });
 }

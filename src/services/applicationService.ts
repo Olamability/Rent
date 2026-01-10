@@ -265,7 +265,7 @@ export async function fetchApplicationsByTenant(tenantId: string): Promise<Appli
             property_id,
             properties!inner(name, address, city, landlord_id, images)
           ),
-          tenancy_agreements!property_applications_id_fkey(
+          tenancy_agreements!tenancy_agreements_application_id_fkey(
             id,
             agreement_status
           )
