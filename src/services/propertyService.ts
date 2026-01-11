@@ -811,7 +811,7 @@ export async function createUnit(
     if (unitData.deposit !== undefined) {
       validateOrThrow(
         isValidNumber(unitData.deposit, 0),
-        'Deposit must be a positive number'
+        'Deposit must be a positive number or zero'
       );
     }
 
