@@ -112,6 +112,7 @@ export interface PropertyWithUnit extends Property {
   bedrooms: number;
   bathrooms: number;
   rentAmount: number;
+  deposit?: number;
   squareFeet?: number;
   listingStatus: string;
   image: string;
@@ -235,6 +236,7 @@ export async function fetchAvailableProperties(): Promise<PropertyWithUnit[]> {
         bedrooms,
         bathrooms,
         rent_amount,
+        deposit,
         square_feet,
         listing_status,
         available_date,
@@ -298,6 +300,7 @@ export async function fetchAvailableProperties(): Promise<PropertyWithUnit[]> {
         bedrooms: unit.bedrooms,
         bathrooms: unit.bathrooms,
         rentAmount: unit.rent_amount,
+        deposit: unit.deposit,
         squareFeet: unit.square_feet,
         listingStatus: unit.listing_status,
         image: property.images?.[0] || DEFAULT_PROPERTY_IMAGE,
@@ -341,6 +344,7 @@ export async function fetchAppliedPropertiesForTenant(tenantId: string): Promise
           bedrooms,
           bathrooms,
           rent_amount,
+          deposit,
           square_feet,
           listing_status,
           available_date,
@@ -406,6 +410,7 @@ export async function fetchAppliedPropertiesForTenant(tenantId: string): Promise
         bedrooms: unit.bedrooms,
         bathrooms: unit.bathrooms,
         rentAmount: unit.rent_amount,
+        deposit: unit.deposit,
         squareFeet: unit.square_feet,
         listingStatus: 'applied' as const,
         image: property.images?.[0] || DEFAULT_PROPERTY_IMAGE,
@@ -504,6 +509,7 @@ export async function fetchLandlordProperties(landlordId: string): Promise<Prope
           bedrooms,
           bathrooms,
           rent_amount,
+          deposit,
           square_feet,
           listing_status
         )
@@ -572,6 +578,7 @@ export async function fetchLandlordProperties(landlordId: string): Promise<Prope
             bedrooms: unit.bedrooms,
             bathrooms: unit.bathrooms,
             rentAmount: unit.rent_amount,
+            deposit: unit.deposit,
             squareFeet: unit.square_feet,
             listingStatus: unit.listing_status,
             image: property.images?.[0] || DEFAULT_PROPERTY_IMAGE,
@@ -804,7 +811,7 @@ export async function createUnit(
     if (unitData.deposit !== undefined) {
       validateOrThrow(
         isValidNumber(unitData.deposit, 0),
-        'Deposit must be a positive number'
+        'Deposit must be a positive number or zero'
       );
     }
 
@@ -1144,6 +1151,7 @@ export async function updateUnit(
     bedrooms?: number;
     bathrooms?: number;
     rentAmount?: number;
+    deposit?: number;
     squareFeet?: number;
     listingStatus?: 'available' | 'applied' | 'rented' | 'unlisted';
     availableDate?: string;
@@ -1186,6 +1194,14 @@ export async function updateUnit(
         'Rent amount must be a positive number'
       );
       updateObject.rent_amount = updateData.rentAmount;
+    }
+
+    if (updateData.deposit !== undefined) {
+      validateOrThrow(
+        isValidNumber(updateData.deposit, 0),
+        'Deposit must be a positive number or zero'
+      );
+      updateObject.deposit = updateData.deposit;
     }
 
     if (updateData.squareFeet !== undefined) {
@@ -1310,6 +1326,7 @@ export async function searchProperties(filters: {
         bedrooms,
         bathrooms,
         rent_amount,
+        deposit,
         square_feet,
         listing_status,
         available_date,
@@ -1387,6 +1404,7 @@ export async function searchProperties(filters: {
         bedrooms: unit.bedrooms,
         bathrooms: unit.bathrooms,
         rentAmount: unit.rent_amount,
+        deposit: unit.deposit,
         listingStatus: unit.listing_status,
         image: property.images?.[0] || DEFAULT_PROPERTY_IMAGE,
       };

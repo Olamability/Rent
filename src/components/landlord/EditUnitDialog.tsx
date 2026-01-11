@@ -21,6 +21,7 @@ interface EditUnitDialogProps {
     bedrooms: number;
     bathrooms: number;
     rentAmount: number;
+    deposit?: number;
     squareFeet?: number;
     listingStatus: string;
   } | null;
@@ -33,6 +34,7 @@ export const EditUnitDialog = ({ open, onOpenChange, unit, onUnitUpdated }: Edit
     bedrooms: "2",
     bathrooms: "2",
     rentAmount: "",
+    deposit: "",
     squareFeet: "",
     listingStatus: "available" as 'available' | 'applied' | 'rented' | 'unlisted',
   });
@@ -46,6 +48,7 @@ export const EditUnitDialog = ({ open, onOpenChange, unit, onUnitUpdated }: Edit
         bedrooms: unit.bedrooms.toString(),
         bathrooms: unit.bathrooms.toString(),
         rentAmount: unit.rentAmount.toString(),
+        deposit: unit.deposit ? unit.deposit.toString() : "",
         squareFeet: unit.squareFeet ? unit.squareFeet.toString() : "",
         listingStatus: unit.listingStatus as 'available' | 'applied' | 'rented' | 'unlisted',
       });
@@ -94,6 +97,16 @@ export const EditUnitDialog = ({ open, onOpenChange, unit, onUnitUpdated }: Edit
       }
     }
 
+    // Validate deposit if provided
+    let deposit: number | undefined;
+    if (formData.deposit) {
+      deposit = safeParseFloat(formData.deposit, { allowZero: true });
+      if (deposit === undefined || deposit < 0) {
+        toast.error("Please provide a valid deposit amount (0 or more)");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -102,6 +115,7 @@ export const EditUnitDialog = ({ open, onOpenChange, unit, onUnitUpdated }: Edit
         bedrooms,
         bathrooms,
         rentAmount,
+        deposit,
         squareFeet,
         listingStatus: formData.listingStatus,
       });
@@ -154,6 +168,21 @@ export const EditUnitDialog = ({ open, onOpenChange, unit, onUnitUpdated }: Edit
                 placeholder="150000"
                 required
               />
+            </div>
+
+            <div>
+              <Label htmlFor="edit-deposit">Deposit Amount (NGN)</Label>
+              <Input
+                id="edit-deposit"
+                type="number"
+                min="0"
+                value={formData.deposit}
+                onChange={(e) => setFormData({ ...formData, deposit: e.target.value })}
+                placeholder="300000"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Leave empty to use default (2x monthly rent)
+              </p>
             </div>
 
             <div>
