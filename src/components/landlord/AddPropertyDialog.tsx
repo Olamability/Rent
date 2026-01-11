@@ -42,6 +42,7 @@ export const AddPropertyDialog = ({ open, onOpenChange, onPropertyAdded }: AddPr
     bedrooms: "2",
     bathrooms: "2",
     rentAmount: "",
+    deposit: "",
     squareFeet: "",
   });
   const [images, setImages] = useState<File[]>([]);
@@ -104,6 +105,15 @@ export const AddPropertyDialog = ({ open, onOpenChange, onPropertyAdded }: AddPr
           return;
         }
       }
+
+      // Validate deposit if provided
+      if (formData.deposit) {
+        const deposit = safeParseFloat(formData.deposit, { allowZero: true });
+        if (deposit === undefined || deposit < 0) {
+          toast.error("Please provide a valid deposit amount (0 or more)");
+          return;
+        }
+      }
     }
 
     // Validate total units if provided
@@ -151,12 +161,14 @@ export const AddPropertyDialog = ({ open, onOpenChange, onPropertyAdded }: AddPr
           const bedrooms = safeParseInt(formData.bedrooms, { allowZero: true }) ?? DEFAULT_BEDROOMS;
           const bathrooms = safeParseFloat(formData.bathrooms, { allowZero: true }) ?? DEFAULT_BATHROOMS;
           const squareFeet = formData.squareFeet ? safeParseInt(formData.squareFeet, { allowZero: false }) : undefined;
+          const deposit = formData.deposit ? safeParseFloat(formData.deposit, { allowZero: true }) : undefined;
 
           await createUnit(property.id, {
             unitNumber: formData.unitNumber || "1",
             bedrooms,
             bathrooms,
             rentAmount: validatedRentAmount,
+            deposit,
             squareFeet,
             features: amenitiesArray, // Use property amenities as unit features
             listingStatus: 'available', // Make it available by default
@@ -207,6 +219,7 @@ export const AddPropertyDialog = ({ open, onOpenChange, onPropertyAdded }: AddPr
         bedrooms: "2",
         bathrooms: "2",
         rentAmount: "",
+        deposit: "",
         squareFeet: "",
       });
       setImages([]);
@@ -395,6 +408,21 @@ export const AddPropertyDialog = ({ open, onOpenChange, onPropertyAdded }: AddPr
                       placeholder="150000"
                       required={formData.createDefaultUnit}
                     />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="deposit">Deposit Amount (NGN)</Label>
+                    <Input
+                      id="deposit"
+                      type="number"
+                      min="0"
+                      value={formData.deposit}
+                      onChange={(e) => setFormData({ ...formData, deposit: e.target.value })}
+                      placeholder="300000"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Leave empty to use default (2x monthly rent)
+                    </p>
                   </div>
 
                   <div>

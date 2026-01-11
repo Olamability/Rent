@@ -110,6 +110,7 @@ interface Unit {
   unit: string;
   tenant: string | null;
   rent: number;
+  deposit?: number;
   status: string;
   bedrooms?: number;
   bathrooms?: number;
@@ -260,6 +261,7 @@ const UnitManagement = () => {
           unit: p.unitNumber,
           tenant: tenantName,
           rent: p.rentAmount,
+          deposit: p.deposit,
           status: displayStatus,
           bedrooms: p.bedrooms,
           bathrooms: p.bathrooms,
@@ -344,6 +346,7 @@ const UnitManagement = () => {
           bedrooms: selectedUnit.bedrooms || 0,
           bathrooms: selectedUnit.bathrooms || 0,
           rentAmount: selectedUnit.rent,
+          deposit: selectedUnit.deposit,
           squareFeet: selectedUnit.squareFeet,
           listingStatus: selectedUnit.listingStatus || 'available',
         } : null}
