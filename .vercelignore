@@ -1,0 +1,4 @@
+# Ignore Next.js specific files to prevent auto-detection
+next.config.mjs
+next-env.d.ts
+app/
