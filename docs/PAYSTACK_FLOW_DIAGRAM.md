@@ -301,7 +301,7 @@ Terminal 3:
          │ Exposes localhost:3000
          ▼
 ┌─────────────────────────────────────┐
-│ https://abc123.ngrok.io             │
+│ https://your-unique-id.ngrok.io     │
 │   → http://localhost:3000           │
 │   → /api/webhooks/paystack          │
 └─────────────────────────────────────┘
@@ -311,8 +311,8 @@ Terminal 3:
 ┌─────────────────────────────────────┐
 │ Paystack Dashboard                  │
 │ Webhook URL:                        │
-│ https://abc123.ngrok.io/api/webhooks│
-│        /paystack                    │
+│ https://your-unique-id.ngrok.io/api/│
+│        webhooks/paystack            │
 └─────────────────────────────────────┘
 ```
 
@@ -378,8 +378,10 @@ Alternative flow:
 │   │   └── paymentServiceSecure.ts  ⬅ Secure payment flow
 │   │
 │   └── components/
-│       └── tenant/
-│           └── PaymentDialog.tsx     ⬅ Payment UI
+│       ├── tenant/
+│       │   └── PaymentDialog.tsx     ⬅ Tenant payment UI
+│       └── shared/
+│           └── PaymentDialog.tsx     ⬅ Shared payment UI
 │
 ├── docs/
 │   ├── PAYSTACK_INTEGRATION.md       ⬅ Full documentation

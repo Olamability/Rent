@@ -38,13 +38,13 @@ npm run dev
 ngrok http 3000
 
 # You'll get output like:
-# Forwarding  https://abc123.ngrok.io -> http://localhost:3000
+# Forwarding  https://your-unique-id.ngrok.io -> http://localhost:3000
 ```
 
 ### 4. Configure Webhook in Paystack
 
 1. Go to https://dashboard.paystack.com/#/settings/webhooks
-2. Add webhook URL: `https://abc123.ngrok.io/api/webhooks/paystack`
+2. Add webhook URL: `https://your-unique-id.ngrok.io/api/webhooks/paystack` (replace with your actual ngrok URL)
 3. Save
 
 ### 5. Test Payment Flow

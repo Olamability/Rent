@@ -72,8 +72,8 @@ npm run dev
 # Terminal 2: Expose with ngrok
 ngrok http 3000
 
-# Copy the ngrok URL (e.g., https://abc123.ngrok.io)
-# Add to Paystack webhook settings: https://abc123.ngrok.io/api/webhooks/paystack
+# Copy the ngrok URL (e.g., https://your-unique-id.ngrok.io)
+# Add to Paystack webhook settings: https://your-unique-id.ngrok.io/api/webhooks/paystack
 ```
 
 ---

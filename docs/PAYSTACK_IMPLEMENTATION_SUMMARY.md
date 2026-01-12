@@ -115,8 +115,8 @@ PAYSTACK_SECRET_KEY=sk_test_xxxxx
    npx next dev  # Terminal 1
    ngrok http 3000  # Terminal 2
    ```
-2. Copy ngrok URL (e.g., `https://abc123.ngrok.io`)
-3. Add to Paystack: `https://abc123.ngrok.io/api/webhooks/paystack`
+2. Copy ngrok URL (e.g., `https://your-unique-id.ngrok.io`)
+3. Add to Paystack: `https://your-unique-id.ngrok.io/api/webhooks/paystack`
 
 ### 4. Test Payment
 1. Start frontend: `npm run dev`
